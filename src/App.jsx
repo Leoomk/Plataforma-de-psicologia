@@ -861,7 +861,10 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
                             .map((app, i) => (
                               <div key={i} className="appointment-item">
                                 <div className="time">
-                                  {new Date(app.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                                  {(() => {
+                                    const [y, m, d] = app.date.split('-');
+                                    return `${d}/${m}`;
+                                  })()}
                                   <br />
                                   <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{app.time}</span>
                                 </div>
