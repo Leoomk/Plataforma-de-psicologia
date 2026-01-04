@@ -976,7 +976,7 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
                                     }
                                   }
 
-                                  if (diff >= 0 && diff <= 7) {
+                                  if (diff >= 0 && diff <= 10) {
                                     alerts.push({
                                       type: 'vencendo',
                                       patient: p,
