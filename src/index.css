@@ -1,0 +1,157 @@
+:root {
+  /* Paleta Apple-Inspired: Neutra, Sofisticada, Respirável */
+  --primary-bg: #FFFFFF;
+  /* Branco Puro */
+  --secondary-bg: #F8F9FA;
+  /* Cinza muito claro */
+  --accent-color: #64B5F6;
+  /* Azul suave - principal */
+  --accent-hover: #42A5F5;
+  --accent-soft: #BBDEFB;
+  /* Azul claro para hover */
+  --success-color: #66BB6A;
+  /* Verde-oliva suave */
+  --text-main: #212121;
+  /* Preto puro - legibilidade máxima */
+  --text-muted: #757575;
+  /* Cinza médio */
+  --border-light: #E0E0E0;
+  /* Bordas sutis */
+  --border-medium: #BDBDBD;
+  --warning: #FFA726;
+  --danger: #EF5350;
+
+  /* Espaçamento: Respiração é Luxo */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --spacing-xs: 8px;
+  --spacing-sm: 16px;
+  --spacing-md: 24px;
+  --spacing-lg: 32px;
+  --spacing-xl: 48px;
+
+  /* Sombras Sutis (quase imperceptíveis) */
+  --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.04);
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-hover: 0 4px 12px rgba(100, 181, 246, 0.12);
+
+  /* Transições Suaves */
+  --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-smooth: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Temas customizáveis */
+[data-theme="rose"] {
+  --accent-color: #F48FB1;
+  --accent-hover: #F06292;
+  --accent-soft: #FCE4EC;
+}
+
+[data-theme="lavender"] {
+  --accent-color: #B39DDB;
+  --accent-hover: #9575CD;
+  --accent-soft: #EDE7F6;
+}
+
+[data-theme="mint"] {
+  --accent-color: #81C784;
+  --accent-hover: #66BB6A;
+  --accent-soft: #E8F5E9;
+}
+
+[data-theme="peach"] {
+  --accent-color: #FFAB91;
+  --accent-hover: #FF8A65;
+  --accent-soft: #FBE9E7;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background-color: var(--primary-bg);
+  color: var(--text-main);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.6;
+  overflow-x: hidden;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+}
+
+/* Scrollbar Minimalista */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-light);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-medium);
+}
+
+/* Cards com Bordas Finas (sem sombras pesadas) */
+.card-premium {
+  background: var(--primary-bg);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+  border: 1px solid var(--border-light);
+  transition: var(--transition-smooth);
+}
+
+.card-premium:hover {
+  transform: scale(1.02);
+  border-color: var(--accent-soft);
+  box-shadow: var(--shadow-hover);
+}
+
+/* Animações Sutis */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Utilitários de Cores (ícones sem fundo) */
+.icon-blue {
+  color: #64B5F6;
+}
+
+.icon-green {
+  color: #66BB6A;
+}
+
+.icon-orange {
+  color: #FFA726;
+}
+
+.icon-pink {
+  color: #F48FB1;
+}
