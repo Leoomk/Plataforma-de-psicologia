@@ -32,7 +32,14 @@ import {
   User,
   DollarSign
 } from 'lucide-react';
-import './App.css';
+const formatBRL = (value) => {
+  if (value === undefined || value === null) return 'R$ 0,00';
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    minimumFractionDigits: 2
+  }).format(value);
+};
 
 const formatLocalDate = (dateStr) => {
   if (!dateStr || dateStr === '-') return '-';
@@ -499,7 +506,7 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
     const body = encodeURIComponent(
       `Olá,\n\nFavor emitir a Nota Fiscal para o paciente abaixo:\n\n` +
       `Nome: ${contract.patientName}\n` +
-      `Valor: R$ ${calculateMonthlyValue(contract)}\n` +
+      `Valor: ${formatBRL(calculateMonthlyValue(contract))}\n` +
       `Referência: ${new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}\n\n` +
       `Obrigada!`
     );
@@ -829,7 +836,7 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
                       </div>
                       <div className="card-premium">
                         <span className="card-label">Faturamento Estimado</span>
-                        <div className="card-value">R$ {stats.estimatedValue}</div>
+                        <div className="card-value">{formatBRL(stats.estimatedValue)}</div>
                         <span className="card-trend positive">Baseado no período</span>
                       </div>
                       <div className="card-premium">
@@ -912,7 +919,7 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
                                   <strong>{alert.patient.name}</strong>
                                   <span style={{ fontSize: '0.8rem', color: alert.type === 'atrasado' ? '#f43f5e' : 'var(--text-muted)' }}>{alert.label}</span>
                                 </div>
-                                <div style={{ fontWeight: '600', marginRight: '10px', fontSize: '1rem' }}>R$ {calculateMonthlyValue(alert.contract)}</div>
+                                <div style={{ fontWeight: '600', marginRight: '10px', fontSize: '1rem' }}>{formatBRL(calculateMonthlyValue(alert.contract))}</div>
                                 <button className="btn-action" style={{ padding: '6px 12px', fontSize: '0.8rem' }} onClick={() => {
                                   setSelectedFinancePatient(alert.patient);
                                   setShowFinanceDetail(true);
@@ -1087,7 +1094,7 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
                             </div>
                             <div className="info-row">
                               <span className="label">Valor Sessão:</span>
-                              <span className="value">R$ {selectedPatientForDetail.sessionValue}</span>
+                              <span className="value">{formatBRL(selectedPatientForDetail.sessionValue)}</span>
                             </div>
                           </div>
                         </div>
@@ -1482,24 +1489,24 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
                   <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
                     <div className="card-premium" style={{ borderLeft: '4px solid #10b981' }}>
                       <span className="card-label">Total Recebido (Mês)</span>
-                      <div className="card-value">R$ {totalPago}</div>
+                      <div className="card-value">{formatBRL(totalPago)}</div>
                       <span className="card-trend positive">Valor em caixa</span>
                     </div>
                     <div className="card-premium" style={{ borderLeft: '4px solid #f59e0b' }}>
                       <span className="card-label">A Receber (Previsto)</span>
-                      <div className="card-value">R$ {totalAVencer + totalAtrasado}</div>
+                      <div className="card-value">{formatBRL(totalAVencer + totalAtrasado)}</div>
                       <span className="card-trend" style={{ fontSize: '0.75rem' }}>
-                        R$ {totalAVencer} a vencer | R$ {totalAtrasado} atrasados
+                        {formatBRL(totalAVencer)} a vencer | {formatBRL(totalAtrasado)} atrasados
                       </span>
                     </div>
                     <div className="card-premium" style={{ borderLeft: '4px solid var(--primary)' }}>
                       <span className="card-label">Imposto & NF (Mês)</span>
-                      <div className="card-value">R$ {totalImposto.toFixed(2)}</div>
+                      <div className="card-value">{formatBRL(totalImposto)}</div>
                       <span className="card-trend">{totalNFs} Notas Fiscais a emitir</span>
                     </div>
                     <div className="card-premium" style={{ borderLeft: '4px solid #f43f5e' }}>
                       <span className="card-label">Inadimplência (Ano)</span>
-                      <div className="card-value">R$ {totalInadimplenteAno}</div>
+                      <div className="card-value">{formatBRL(totalInadimplenteAno)}</div>
                       <span className="card-trend" style={{ color: '#f43f5e' }}>{inadimplenteClients.size} clientes inadimplentes</span>
                     </div>
                   </div>
@@ -1526,7 +1533,7 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
                             <div className="patient-avatar-finance">{patient.name[0]}</div>
                             <div className="patient-info-finance">
                               <h4>{patient.name}</h4>
-                              <span>{patient.frequency} • R$ {patient.sessionValue}/sessão</span>
+                              <span>{patient.frequency} • {formatBRL(patient.sessionValue)}/sessão</span>
                             </div>
                           </div>
                           <div className="card-finance-body">
@@ -1536,7 +1543,7 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
                             </div>
                             <div className="finance-stat">
                               <label>Total a Receber</label>
-                              <div className="value primary-color">R$ {monthlyValue}</div>
+                              <div className="value primary-color">{formatBRL(monthlyValue)}</div>
                             </div>
                           </div>
                           <div className="card-finance-footer">
@@ -1559,7 +1566,7 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
                             <strong>{c.patientName}</strong>
                             <span>Vencimento: Dia {c.paymentDay}</span>
                           </div>
-                          <div className="nf-value">R$ {calculateMonthlyValue(c)}</div>
+                          <div className="nf-value">{formatBRL(calculateMonthlyValue(c))}</div>
                           <button className="btn-action" onClick={() => handleSendNFEmail(c)}>Emitir NF</button>
                         </div>
                       ))}
@@ -1895,7 +1902,7 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
                 <h2>{selectedFinancePatient.name}</h2>
                 <span className="patient-meta" style={{ display: 'flex', gap: '15px', color: 'var(--text-muted)', marginTop: '5px' }}>
                   <span><Calendar size={14} style={{ marginRight: '4px', verticalAlign: 'text-bottom' }} /> {selectedFinancePatient.frequency}</span>
-                  <span><DollarSign size={14} style={{ marginRight: '4px', verticalAlign: 'text-bottom' }} /> R$ {selectedFinancePatient.sessionValue} / sessão</span>
+                  <span><DollarSign size={14} style={{ marginRight: '4px', verticalAlign: 'text-bottom' }} /> {formatBRL(selectedFinancePatient.sessionValue)} / sessão</span>
                 </span>
               </div>
               <button className="btn-close" onClick={() => setShowFinanceDetail(false)}>
@@ -1909,7 +1916,7 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
                 <div className="card-premium" style={{ background: 'linear-gradient(135deg, rgba(var(--primary-rgb), 0.1) 0%, rgba(var(--primary-rgb), 0.05) 100%)', border: '1px solid rgba(var(--primary-rgb), 0.2)' }}>
                   <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'block', marginBottom: '5px' }}>Total Investido (Lifetime)</span>
                   <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: 'var(--primary)' }}>
-                    R$ {events.filter(e => e.patient === selectedFinancePatient.name && (e.status === 'confirmed' || e.status === 'unexcused_absence')).length * selectedFinancePatient.sessionValue}
+                    {formatBRL(events.filter(e => e.patient === selectedFinancePatient.name && (e.status === 'confirmed' || e.status === 'unexcused_absence')).length * selectedFinancePatient.sessionValue)}
                   </div>
                 </div>
                 <div className="card-premium">
