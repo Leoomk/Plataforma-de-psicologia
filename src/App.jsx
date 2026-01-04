@@ -122,6 +122,8 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
   });
   const [isRecordingReal, setIsRecordingReal] = useState(false);
   const [recognition, setRecognition] = useState(null);
+  const [recordFilterDate, setRecordFilterDate] = useState('');
+  const [recordFilterPatient, setRecordFilterPatient] = useState('');
 
   // Estados iniciais carregados do localStorage
   const [userProfile, setUserProfile] = useState(() => loadInitialState('userProfile', {
@@ -364,6 +366,12 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleNavigateToRecord = (event) => {
+    setSelectedRecordEventId(event.id);
+    setActiveTab('records');
+    setSelectedPatientForDetail(null); // Fecha o detalhe do paciente se estiver aberto
   };
 
   const handleExportData = () => {
@@ -876,149 +884,183 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
                   </div>
                 </>
               ) : (
-                <div className="patient-detail-view animate-slide-in">
-                  <div className="view-header">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                      <button className="btn-icon" onClick={() => setSelectedPatientForDetail(null)}>
-                        <ChevronLeft size={24} />
+                <div className="patient-detail-overlay animate-fade-in" onClick={() => setSelectedPatientForDetail(null)}>
+                  <div className="patient-detail-sidebar" onClick={(e) => e.stopPropagation()}>
+                    <div className="detail-header">
+                      <button className="btn-close" onClick={() => setSelectedPatientForDetail(null)}>
+                        <ChevronRight size={24} />
                       </button>
-                      <div>
-                        <h1>{selectedPatientForDetail.name}</h1>
-                        <p>{selectedPatientForDetail.email} • {selectedPatientForDetail.phone}</p>
-                      </div>
+                      <h2>{selectedPatientForDetail.name}</h2>
+                      <span className="patient-status-badge active">Em tratamento</span>
                     </div>
-                    <div style={{ display: 'flex', gap: '12px' }}>
-                      <button className="btn-outline" onClick={() => handleEditPatient(selectedPatientForDetail)}>Editar Cadastro</button>
-                      <button className="btn-primary" onClick={() => {
-                        setNewSession({ ...newSession, patient: selectedPatientForDetail.name });
-                        setShowNewSessionModal(true);
-                        setActiveTab('calendar');
-                      }}>Agendar Sessão</button>
+
+                    <div className="detail-tabs" style={{ display: 'flex', gap: '10px', padding: '0 20px', marginBottom: '20px' }}>
+                      <button
+                        className={`tab-pill ${patientDetailTab === 'overview' ? 'active' : ''}`}
+                        onClick={() => setPatientDetailTab('overview')}
+                        style={{
+                          flex: 1,
+                          padding: '10px',
+                          borderRadius: '8px',
+                          border: 'none',
+                          background: patientDetailTab === 'overview' ? 'var(--primary)' : 'var(--bg-secondary)',
+                          color: patientDetailTab === 'overview' ? '#fff' : 'var(--text-primary)',
+                          cursor: 'pointer',
+                          fontWeight: '500',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        Visão Geral
+                      </button>
+                      <button
+                        className={`tab-pill ${patientDetailTab === 'sessions' ? 'active' : ''}`}
+                        onClick={() => setPatientDetailTab('sessions')}
+                        style={{
+                          flex: 1,
+                          padding: '10px',
+                          borderRadius: '8px',
+                          border: 'none',
+                          background: patientDetailTab === 'sessions' ? 'var(--primary)' : 'var(--bg-secondary)',
+                          color: patientDetailTab === 'sessions' ? '#fff' : 'var(--text-primary)',
+                          cursor: 'pointer',
+                          fontWeight: '500',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        Sessões
+                      </button>
+                      <button
+                        className={`tab-pill ${patientDetailTab === 'financial' ? 'active' : ''}`}
+                        onClick={() => setPatientDetailTab('financial')}
+                        style={{
+                          flex: 1,
+                          padding: '10px',
+                          borderRadius: '8px',
+                          border: 'none',
+                          background: patientDetailTab === 'financial' ? 'var(--primary)' : 'var(--bg-secondary)',
+                          color: patientDetailTab === 'financial' ? '#fff' : 'var(--text-primary)',
+                          cursor: 'pointer',
+                          fontWeight: '500',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        Financeiro
+                      </button>
                     </div>
-                  </div>
 
-                  <div className="patient-tabs card-premium" style={{ display: 'flex', padding: '0', marginBottom: '20px', overflow: 'hidden' }}>
-                    <button className={`tab-btn ${patientDetailTab === 'overview' ? 'active' : ''}`} onClick={() => setPatientDetailTab('overview')}>Visão Geral</button>
-                    <button className={`tab-btn ${patientDetailTab === 'sessions' ? 'active' : ''}`} onClick={() => setPatientDetailTab('sessions')}>Sessões</button>
-                    <button className={`tab-btn ${patientDetailTab === 'anamnesis' ? 'active' : ''}`} onClick={() => setPatientDetailTab('anamnesis')}>Anamnese</button>
-                    <button className={`tab-btn ${patientDetailTab === 'summary' ? 'active' : ''}`} onClick={() => setPatientDetailTab('summary')}>Resumo das Sessões</button>
-                  </div>
-
-                  <div className="tab-content">
-                    {patientDetailTab === 'overview' && (
-                      <div className="animate-fade-in">
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
-                          <div className="card-premium info-section">
-                            <div className="card-header">
-                              <h3>📋 Dados do Paciente</h3>
-                              <button className="btn-link" onClick={() => handleEditPatient(selectedPatientForDetail)}>Ver tudo</button>
+                    <div className="detail-content custom-scrollbar">
+                      {patientDetailTab === 'overview' && (
+                        <div className="animate-slide-in">
+                          <div className="info-card">
+                            <h3>Informações Pessoais</h3>
+                            <div className="info-row">
+                              <span className="label">Telefone:</span>
+                              <span className="value">{selectedPatientForDetail.phone}</span>
                             </div>
-                            <div className="info-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginTop: '10px' }}>
-                              <div><label style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>CPF</label><div>{selectedPatientForDetail.cpf || '-'}</div></div>
-                              <div><label style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Frequência</label><div>{selectedPatientForDetail.frequency}</div></div>
-                              <div><label style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Valor/Sessão</label><div>R$ {selectedPatientForDetail.sessionValue}</div></div>
-                              <div><label style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Contrato</label><div>Ativo</div></div>
+                            <div className="info-row">
+                              <span className="label">Email:</span>
+                              <span className="value">{selectedPatientForDetail.email}</span>
                             </div>
-                            <div style={{ marginTop: '15px' }}>
-                              <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Endereço</label>
-                              <div>{selectedPatientForDetail.address || 'Não informado'}</div>
+                            <div className="info-row">
+                              <span className="label">Endereço:</span>
+                              <span className="value">{selectedPatientForDetail.address}</span>
                             </div>
                           </div>
 
-                          <div className="card-premium">
-                            <div className="card-header">
-                              <h3>🗓️ Próximas Sessões</h3>
-                              <button className="btn-link" onClick={() => setPatientDetailTab('sessions')}>Ver histórico</button>
+                          <div className="info-card" style={{ marginTop: '20px' }}>
+                            <h3>Contrato Terapêutico</h3>
+                            <div className="info-row">
+                              <span className="label">Frequência:</span>
+                              <span className="value">{selectedPatientForDetail.frequency}</span>
                             </div>
-                            <div className="appointment-list">
-                              {events
-                                .filter(e => e.patient === selectedPatientForDetail.name && new Date(e.date + 'T00:00:00') >= new Date().setHours(0, 0, 0, 0) && e.status !== 'rescheduled')
-                                .sort((a, b) => a.date.localeCompare(b.date))
-                                .slice(0, 3)
-                                .map(e => (
-                                  <div key={e.id} className="appointment-item">
-                                    <div className="time">{new Date(e.date + 'T00:00:00').toLocaleDateString('pt-BR')} • {e.time}</div>
-                                    <div className="patient-info"><strong>{e.type}</strong></div>
-                                  </div>
-                                ))}
-                              {events.filter(e => e.patient === selectedPatientForDetail.name && new Date(e.date + 'T00:00:00') >= new Date().setHours(0, 0, 0, 0)).length === 0 && (
-                                <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '20px' }}>Nenhuma sessão agendada.</p>
-                              )}
+                            <div className="info-row">
+                              <span className="label">Valor Sessão:</span>
+                              <span className="value">R$ {selectedPatientForDetail.sessionValue}</span>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    )}
+                      )}
 
-                    {patientDetailTab === 'sessions' && (
-                      <div className="card-premium animate-fade-in" style={{ padding: '0' }}>
-                        <div className="table-responsive">
-                          <table className="patients-table">
-                            <thead>
-                              <tr>
-                                <th>Data/Hora</th>
-                                <th>Tipo</th>
-                                <th>Status</th>
-                                <th>Ações</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {events
-                                .filter(e => e.patient === selectedPatientForDetail.name)
-                                .sort((a, b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time))
-                                .map(e => (
-                                  <tr key={e.id}>
-                                    <td>{new Date(e.date + 'T00:00:00').toLocaleDateString('pt-BR')} • {e.time}</td>
-                                    <td>{e.type}</td>
-                                    <td><span className={`status-badge ${e.status}`}>{e.status.replace('_', ' ')}</span></td>
-                                    <td><button className="btn-link" onClick={() => setActiveTab('records')}>Prontuário</button></td>
-                                  </tr>
-                                ))}
-                            </tbody>
-                          </table>
+                      {patientDetailTab === 'sessions' && (
+                        <div className="sessions-list animate-slide-in">
+                          <h3>Histórico de Sessões</h3>
+                          {events
+                            .filter(e => e.patient === selectedPatientForDetail.name)
+                            .sort((a, b) => new Date(b.date) - new Date(a.date))
+                            .map(session => (
+                              <div key={session.id} className="session-history-item" style={{ padding: '15px', borderBottom: '1px solid var(--border-light)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div>
+                                  <div style={{ fontWeight: 'bold' }}>{new Date(session.date).toLocaleDateString('pt-BR')}</div>
+                                  <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>{session.type} • {session.status === 'confirmed' ? 'Realizada' : 'Pendente'}</div>
+                                </div>
+                                <button
+                                  className="btn-outline-small"
+                                  onClick={() => handleNavigateToRecord(session)}
+                                  style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
+                                >
+                                  <FileText size={14} />
+                                  Prontuário
+                                </button>
+                              </div>
+                            ))}
+                          {events.filter(e => e.patient === selectedPatientForDetail.name).length === 0 && (
+                            <p style={{ color: 'var(--text-muted)', textAlign: 'center', marginTop: '20px' }}>Nenhuma sessão registrada.</p>
+                          )}
                         </div>
-                      </div>
-                    )}
+                      )}
 
-                    {patientDetailTab === 'anamnesis' && (
-                      <div className="card-premium animate-fade-in">
-                        <div className="card-header">
-                          <h3>Ficha de Anamnese</h3>
-                          <span>Paciente: {selectedPatientForDetail.name}</span>
-                        </div>
-                        <div className="form-group" style={{ marginTop: '20px' }}>
-                          <textarea
-                            className="form-input"
-                            style={{ width: '100%', minHeight: '400px', padding: '20px', fontSize: '1rem', lineHeight: '1.6' }}
-                            placeholder="Descreva aqui a história clínica, queixa principal, antecedentes familiares e marcos do desenvolvimento..."
-                          ></textarea>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px' }}>
-                          <button className="btn-primary">Salvar Ficha Clínica</button>
-                        </div>
-                      </div>
-                    )}
+                      {patientDetailTab === 'financial' && (
+                        <div className="financial-detail animate-slide-in">
+                          <h3>Resumo Financeiro</h3>
 
-                    {patientDetailTab === 'summary' && (
-                      <div className="animate-fade-in">
-                        <div className="card-premium" style={{ marginBottom: '20px' }}>
-                          <div className="card-header">
-                            <h3>📜 Evolução e Resumo</h3>
-                            <button className="btn-primary" onClick={() => setActiveTab('records')}><Mic size={16} /> Nova Nota</button>
-                          </div>
-                          <p style={{ color: 'var(--text-muted)', marginTop: '5px' }}>Consolidado automático das últimas sessões.</p>
-                        </div>
-                        <div className="session-history-list">
-                          <div className="card-premium" style={{ background: 'var(--secondary-bg)', marginBottom: '15px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-                              <strong>Resumo da última semana</strong>
-                              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>12 Dez 2025</span>
+                          <div className="info-card" style={{ marginBottom: '20px' }}>
+                            <div className="info-row">
+                              <span className="label">Valor por Sessão:</span>
+                              <span className="value" style={{ fontWeight: 'bold', color: 'var(--success)' }}>R$ {selectedPatientForDetail.sessionValue}</span>
                             </div>
-                            <p style={{ lineHeight: '1.5' }}>O paciente demonstrou progresso significativo na elaboração do conflito relatado anteriormente. Mantém foco em questões relacionadas ao ambiente de trabalho...</p>
+                            <div className="info-row">
+                              <span className="label">Pagamento:</span>
+                              <span className="value">Mensal</span>
+                            </div>
+                          </div>
+
+                          <h3>Histórico Recente</h3>
+                          <div className="session-history-list">
+                            {(() => {
+                              const months = [];
+                              const now = new Date();
+                              for (let i = 0; i < 3; i++) {
+                                const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                                const monthName = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+
+                                const monthEvents = events.filter(e => {
+                                  const eDate = new Date(e.date + 'T00:00:00');
+                                  return eDate.getMonth() === d.getMonth() &&
+                                    eDate.getFullYear() === d.getFullYear() &&
+                                    e.patient === selectedPatientForDetail.name &&
+                                    (e.status === 'confirmed' || e.status === 'unexcused_absence');
+                                });
+
+                                if (monthEvents.length > 0) {
+                                  months.push(
+                                    <div key={monthName} className="history-month-item" style={{ padding: '12px', background: 'var(--bg-secondary)', borderRadius: '8px', marginBottom: '10px' }}>
+                                      <div className="month-info" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                        <strong style={{ textTransform: 'capitalize' }}>{monthName}</strong>
+                                        <span>R$ {monthEvents.length * (selectedPatientForDetail.sessionValue || 0)}</span>
+                                      </div>
+                                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                                        {monthEvents.length} sessões contabilizadas
+                                      </div>
+                                    </div>
+                                  );
+                                }
+                              }
+                              return months.length > 0 ? months : <p style={{ color: 'var(--text-muted)' }}>Sem registros financeiros recentes.</p>;
+                            })()}
                           </div>
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
@@ -1171,6 +1213,33 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
                     <h3>1. Selecione a Sessão</h3>
                   </div>
 
+                  <div className="filters-container" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '15px' }}>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label style={{ fontSize: '0.8rem', marginBottom: '4px', display: 'block' }}>Filtrar por Paciente</label>
+                      <select
+                        className="form-input"
+                        value={recordFilterPatient}
+                        onChange={(e) => setRecordFilterPatient(e.target.value)}
+                        style={{ fontSize: '0.9rem', padding: '8px' }}
+                      >
+                        <option value="">Todos</option>
+                        {patients.map(p => (
+                          <option key={p.id} value={p.name}>{p.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label style={{ fontSize: '0.8rem', marginBottom: '4px', display: 'block' }}>Filtrar por Data</label>
+                      <input
+                        type="date"
+                        className="form-input"
+                        value={recordFilterDate}
+                        onChange={(e) => setRecordFilterDate(e.target.value)}
+                        style={{ fontSize: '0.9rem', padding: '8px' }}
+                      />
+                    </div>
+                  </div>
+
                   <div className="form-group">
                     <select
                       className="form-input"
@@ -1180,6 +1249,12 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
                     >
                       <option value="">-- Escolha um atendimento --</option>
                       {events
+                        .filter(e => {
+                          // Aplica filtros
+                          if (recordFilterPatient && e.patient !== recordFilterPatient) return false;
+                          if (recordFilterDate && e.date !== recordFilterDate) return false;
+                          return true;
+                        })
                         .sort((a, b) => new Date(b.date + 'T' + b.time) - new Date(a.date + 'T' + a.time))
                         .map(e => (
                           <option key={e.id} value={e.id}>
