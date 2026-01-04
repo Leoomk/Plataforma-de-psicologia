@@ -267,6 +267,8 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
 
   const [editingContract, setEditingContract] = useState(null);
   const [showContractModal, setShowContractModal] = useState(false);
+  const [financeFilterMonth, setFinanceFilterMonth] = useState(new Date().getMonth());
+  const [financeFilterYear, setFinanceFilterYear] = useState(new Date().getFullYear());
   const [showAddPatientModal, setShowAddPatientModal] = useState(false);
   const [editingPatient, setEditingPatient] = useState(null);
   const [newPatient, setNewPatient] = useState({
@@ -604,8 +606,14 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
   };
 
   const handleEditPatient = (patient) => {
+    const contract = contracts.find(c => c.patientId === patient.id);
     setEditingPatient(patient);
-    setNewPatient({ ...patient });
+    setNewPatient({
+      ...patient,
+      billingMode: contract?.billingMode || 'Mensal',
+      paymentDay: contract?.paymentDay || 5,
+      dueDaysAfterSession: contract?.dueDaysAfterSession || 2
+    });
     setShowAddPatientModal(true);
   };
 
@@ -980,6 +988,13 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
                                   }
                                 }
                               }
+                            });
+
+                            // Ordenar alertas: Mais antigos primeiro, seguidos pelos que vencem hoje/breve
+                            alerts.sort((a, b) => {
+                              const dateA = new Date(a.year, a.month, a.type === 'atrasado' ? 1 : (a.contract.paymentDay || 31));
+                              const dateB = new Date(b.year, b.month, b.type === 'atrasado' ? 1 : (b.contract.paymentDay || 31));
+                              return dateA - dateB;
                             });
 
                             return alerts.length > 0 ? alerts.map((alert, i) => (
@@ -1507,15 +1522,38 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
 
           {activeTab === 'finance' && (
             <div className="finance-view animate-fade-in">
-              <div className="view-header">
-                <h1>Financeiro & Recebimentos</h1>
-                <p>Monitore seu faturamento real e previsões de recebimento.</p>
+              <div className="view-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <h1>Financeiro & Recebimentos</h1>
+                  <p>Monitore seu faturamento real e previsões de recebimento.</p>
+                </div>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <select
+                    className="form-input"
+                    style={{ width: '130px' }}
+                    value={financeFilterMonth}
+                    onChange={(e) => setFinanceFilterMonth(Number(e.target.value))}
+                  >
+                    {['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'].map((m, i) => (
+                      <option key={i} value={i}>{m}</option>
+                    ))}
+                  </select>
+                  <select
+                    className="form-input"
+                    style={{ width: '100px' }}
+                    value={financeFilterYear}
+                    onChange={(e) => setFinanceFilterYear(Number(e.target.value))}
+                  >
+                    {[2024, 2025, 2026, 2027].map(y => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               {(() => {
-                const now = new Date();
-                const m = now.getMonth();
-                const y = now.getFullYear();
+                const m = financeFilterMonth;
+                const y = financeFilterYear;
 
                 let totalPago = 0;
                 let totalAVencer = 0;
@@ -1549,7 +1587,7 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
                   const entry = paymentStatuses[key];
                   const status = typeof entry === 'object' ? entry.status : entry;
 
-                  if (year === String(y) && status === 'inadimplente') {
+                  if (Number(year) === y && status === 'inadimplente') {
                     const contract = contracts.find(c => c.patientId === Number(pId));
                     if (contract) {
                       totalInadimplenteAno += calculateMonthlyValue(contract, Number(month), Number(year));
