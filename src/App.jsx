@@ -207,7 +207,6 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
       cpf: '234.567.890-11',
       address: 'Av. Paulista, 1000 - SP',
       sessionValue: 180,
-      frequency: 'Quinzenal',
       requiresNF: false,
       lastSession: '15/12/2025'
     },
@@ -219,7 +218,6 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
       cpf: '345.678.901-22',
       address: 'Rua Augusta, 500 - SP',
       sessionValue: 250,
-      frequency: 'Mensal',
       requiresNF: true,
       lastSession: '12/12/2025'
     },
@@ -233,10 +231,10 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
   ]));
 
   const [contracts, setContracts] = useState(() => loadInitialState('contracts', [
-    { id: 1, patientId: 1, patientName: 'Ana Clara Silva', value: 200, paymentDay: 5, frequency: 'Mensal', status: 'Ativo', requiresNF: true },
-    { id: 2, patientId: 2, patientName: 'Carlos Eduardo Santos', value: 180, paymentDay: 10, frequency: 'Quinzenal', status: 'Ativo', requiresNF: false },
-    { id: 3, patientId: 3, patientName: 'Juliana Mendes', value: 250, paymentDay: 15, frequency: 'Mensal', status: 'Ativo', requiresNF: true },
-    { id: 4, patientId: 4, patientName: 'Marcos Oliveira', value: 150, paymentDay: 20, frequency: 'Mensal', status: 'Suspenso', requiresNF: false },
+    { id: 1, patientId: 1, patientName: 'Ana Clara Silva', value: 200, paymentDay: 5, billingMode: 'Mensal', status: 'Ativo', requiresNF: true },
+    { id: 2, patientId: 2, patientName: 'Carlos Eduardo Santos', value: 180, paymentDay: 10, billingMode: 'Mensal', status: 'Ativo', requiresNF: false },
+    { id: 3, patientId: 3, patientName: 'Juliana Mendes', value: 250, paymentDay: 15, billingMode: 'Mensal', status: 'Ativo', requiresNF: true },
+    { id: 4, patientId: 4, patientName: 'Marcos Oliveira', value: 150, paymentDay: 20, billingMode: 'Mensal', status: 'Suspenso', requiresNF: false },
   ]));
 
   const [payments, setPayments] = useState(() => loadInitialState('payments', [
@@ -256,7 +254,9 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
     cpf: '',
     address: '',
     sessionValue: 200,
-    frequency: 'Semanal',
+    billingMode: 'Mensal',
+    paymentDay: 5,
+    dueDaysAfterSession: 2,
     requiresNF: false
   });
   const [selectedFinancePatient, setSelectedFinancePatient] = useState(null);
@@ -565,15 +565,17 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
         patientId: id,
         patientName: newPatient.name,
         value: newPatient.sessionValue,
-        paymentDay: 5,
-        frequency: newPatient.frequency,
+        paymentDay: newPatient.billingMode === 'Mensal' ? newPatient.paymentDay : null,
+        billingMode: newPatient.billingMode,
+        dueDaysAfterSession: newPatient.billingMode === 'Por Sessão' ? newPatient.dueDaysAfterSession : null,
         status: 'Ativo',
         requiresNF: newPatient.requiresNF
       }]);
 
       setNewPatient({
         name: '', email: '', phone: '', cpf: '',
-        address: '', sessionValue: 200, frequency: 'Semanal', requiresNF: false
+        address: '', sessionValue: 200, billingMode: 'Mensal',
+        paymentDay: 5, dueDaysAfterSession: 2, requiresNF: false
       });
       setShowAddPatientModal(false);
     }
@@ -594,14 +596,17 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
         ...c,
         patientName: newPatient.name,
         value: newPatient.sessionValue,
-        frequency: newPatient.frequency,
+        billingMode: newPatient.billingMode,
+        paymentDay: newPatient.billingMode === 'Mensal' ? newPatient.paymentDay : null,
+        dueDaysAfterSession: newPatient.billingMode === 'Por Sessão' ? newPatient.dueDaysAfterSession : null,
         requiresNF: newPatient.requiresNF
       } : c));
 
       setEditingPatient(null);
       setNewPatient({
         name: '', email: '', phone: '', cpf: '',
-        address: '', sessionValue: 200, frequency: 'Semanal', requiresNF: false
+        address: '', sessionValue: 200, billingMode: 'Mensal',
+        paymentDay: 5, dueDaysAfterSession: 2, requiresNF: false
       });
       setShowAddPatientModal(false);
     }
@@ -1096,8 +1101,12 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
                           <div className="info-card" style={{ marginTop: '20px' }}>
                             <h3>Contrato Terapêutico</h3>
                             <div className="info-row">
-                              <span className="label">Frequência:</span>
-                              <span className="value">{selectedPatientForDetail.frequency}</span>
+                              <span className="label">Faturamento:</span>
+                              <span className="value">
+                                {selectedPatientForDetail.billingMode === 'Por Sessão'
+                                  ? `${selectedPatientForDetail.dueDaysAfterSession} dias após sessão`
+                                  : `Mensal (Dia ${selectedPatientForDetail.paymentDay || 5})`}
+                              </span>
                             </div>
                             <div className="info-row">
                               <span className="label">Valor Sessão:</span>
@@ -1540,7 +1549,7 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
                             <div className="patient-avatar-finance">{patient.name[0]}</div>
                             <div className="patient-info-finance">
                               <h4>{patient.name}</h4>
-                              <span>{patient.frequency} • {formatBRL(patient.sessionValue)}/sessão</span>
+                              <span>{formatBRL(patient.sessionValue)} / sessão</span>
                             </div>
                           </div>
                           <div className="card-finance-body">
@@ -2111,16 +2120,42 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
 
                 <div className="form-group-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div className="form-group">
-                    <label>Frequência</label>
+                    <label>Frequência de Pagamento</label>
                     <select
-                      value={newPatient.frequency}
-                      onChange={(e) => setNewPatient({ ...newPatient, frequency: e.target.value })}
+                      value={newPatient.billingMode}
+                      onChange={(e) => setNewPatient({ ...newPatient, billingMode: e.target.value })}
                       className="form-input"
                     >
-                      <option value="Semanal">Semanal</option>
-                      <option value="Quinzenal">Quinzenal</option>
                       <option value="Mensal">Mensal</option>
+                      <option value="Por Sessão">Por Sessão</option>
                     </select>
+                  </div>
+                  <div className="form-group">
+                    {newPatient.billingMode === 'Mensal' ? (
+                      <>
+                        <label>Dia do Vencimento</label>
+                        <input
+                          type="number"
+                          placeholder="Dia do mês (ex: 10)"
+                          value={newPatient.paymentDay}
+                          onChange={(e) => setNewPatient({ ...newPatient, paymentDay: Number(e.target.value) })}
+                          className="form-input"
+                          min="1"
+                          max="31"
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <label>Dias p/ Vencer (após sessão)</label>
+                        <input
+                          type="number"
+                          placeholder="Qtd de dias (ex: 2)"
+                          value={newPatient.dueDaysAfterSession}
+                          onChange={(e) => setNewPatient({ ...newPatient, dueDaysAfterSession: Number(e.target.value) })}
+                          className="form-input"
+                        />
+                      </>
+                    )}
                   </div>
                   <div className="form-group" style={{ display: 'flex', alignItems: 'center', height: '100%', paddingTop: '28px' }}>
                     <label className="checkbox-label">
