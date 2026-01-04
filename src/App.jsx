@@ -1550,29 +1550,6 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
                     </div>
                   </div>
                 </div>
-
-                <aside className="finance-sidebar">
-                  <div className="card-premium tax-strategy-card">
-                    <div className="card-header">
-                      <h3>💻 Gestão Fiscal</h3>
-                    </div>
-                    <div className="strategy-content">
-                      <p>Como Psicóloga(o) em uma <strong>LTDA</strong>, você está no <strong>Anexo 3</strong> do Simples Nacional.</p>
-                      <div className="strategy-item">
-                        <strong>Estratégia Fator R</strong>
-                        <p>Para manter a alíquota de <strong>6%</strong> (em vez de 15,5%), seu Pró-labore deve ser 28% do faturamento.</p>
-                      </div>
-                      <div className="strategy-item">
-                        <strong>Seu Planejamento</strong>
-                        <p>Definimos o <strong>mínimo de Pró-labore</strong> necessário para atingir o Fator R de forma legal.</p>
-                      </div>
-                      <div className="tax-economy">
-                        <Sparkles size={16} />
-                        <span>Economia Fiscal: <strong>~R$ 1.180</strong></span>
-                      </div>
-                    </div>
-                  </div>
-                </aside>
               </div>
             </div>
           )}
