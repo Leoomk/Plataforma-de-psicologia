@@ -32,6 +32,7 @@ import {
   User,
   DollarSign
 } from 'lucide-react';
+import './App.css';
 const formatBRL = (value) => {
   if (value === undefined || value === null) return 'R$ 0,00';
   return new Intl.NumberFormat('pt-BR', {
