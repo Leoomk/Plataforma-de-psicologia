@@ -1303,7 +1303,7 @@ function App() {
               <div className="settings-section" style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1px solid var(--border-light)' }}>
                 <label style={{ display: 'block', marginBottom: '12px', fontWeight: '600' }}>Gestão de Dados</label>
 
-                {lastBackupDate && (
+                {lastBackupDate && !isNaN(new Date(lastBackupDate).getTime()) && (
                   <div style={{ marginBottom: '15px', padding: '10px', background: 'var(--bg-secondary)', borderRadius: '8px', borderLeft: '4px solid var(--primary)' }}>
                     <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
                       <strong>Último Backup:</strong> {new Date(lastBackupDate).toLocaleDateString('pt-BR')} às {new Date(lastBackupDate).toLocaleTimeString('pt-BR')}
