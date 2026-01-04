@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "homepage": "https://leoomk.github.io/plataforma-psicologia",
+  "homepage": "https://leoomk.github.io/Plataforma-de-psicologia",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
