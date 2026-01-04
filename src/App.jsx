@@ -48,10 +48,15 @@ const parseLocalDate = (dateStr) => {
   return new Date(year, month - 1, day);
 };
 
-const getPaymentStatus = (patientId, month, year, paymentDay, paymentStatuses) => {
+const getPaymentData = (patientId, month, year, paymentDay, paymentStatuses) => {
   const key = `${patientId}-${month}-${year}`;
-  const status = paymentStatuses[key];
-  if (status) return status;
+  const entry = paymentStatuses[key];
+
+  // Normalizar entrada (pode ser string antiga ou objeto novo)
+  const status = typeof entry === 'object' ? entry.status : entry;
+  const customValue = typeof entry === 'object' ? entry.customValue : null;
+
+  if (status) return { status, customValue };
 
   const now = new Date();
   const currentMonth = now.getMonth();
@@ -59,15 +64,15 @@ const getPaymentStatus = (patientId, month, year, paymentDay, paymentStatuses) =
   const today = now.getDate();
 
   if (year < currentYear || (year === currentYear && month < currentMonth)) {
-    return "atrasado";
+    return { status: "atrasado", customValue: null };
   }
 
   if (year === currentYear && month === currentMonth) {
-    if (today > (paymentDay || 5)) return "atrasado";
-    return "a_vencer";
+    if (today > (paymentDay || 5)) return { status: "atrasado", customValue: null };
+    return { status: "a_vencer", customValue: null };
   }
 
-  return "a_vencer";
+  return { status: "a_vencer", customValue: null };
 };
 
 const SidebarItem = ({ icon: Icon, label, active, onClick }) => (
@@ -258,14 +263,18 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
 
   const [paymentStatuses, setPaymentStatuses] = useState(() => loadInitialState('paymentStatuses', {}));
 
-  const handleUpdatePaymentStatus = (patientId, month, year, status) => {
+  const handleUpdatePaymentStatus = (patientId, month, year, status, customValue = undefined) => {
     const key = `${patientId}-${month}-${year}`;
     setPaymentStatuses(prev => {
       const newState = { ...prev };
-      if (status === 'pendente') {
-        delete newState[key]; // Retorna para a lógica automática
+      if (status === 'pendente' && customValue === undefined) {
+        delete newState[key]; // Retorna para a lógica automática completa
       } else {
-        newState[key] = status;
+        const current = typeof prev[key] === 'object' ? prev[key] : { status: prev[key] || '' };
+        newState[key] = {
+          status: status !== null ? status : current.status,
+          customValue: customValue !== undefined ? customValue : current.customValue
+        };
       }
       return newState;
     });
@@ -497,18 +506,23 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
     window.location.href = `mailto:contabilidade@exemplo.com?subject=${subject}&body=${body}`;
   };
 
-  const calculateMonthlyValue = (contract) => {
-    const currentMonth = new Date().getMonth();
-    const currentYear = new Date().getFullYear();
+  const calculateMonthlyValue = (contract, month = undefined, year = undefined) => {
+    const now = new Date();
+    const targetMonth = month !== undefined ? month : now.getMonth();
+    const targetYear = year !== undefined ? year : now.getFullYear();
+
+    // Primeiro verifica se há valor manual salvo
+    const pData = getPaymentData(contract.patientId, targetMonth, targetYear, contract.paymentDay, paymentStatuses);
+    if (pData.customValue !== null) return Number(pData.customValue);
+
     const sessionsInMonth = events.filter(e => {
-      const eDate = new Date(e.date + 'T00:00:00');
-      return eDate.getMonth() === currentMonth &&
-        eDate.getFullYear() === currentYear &&
+      const eDate = parseLocalDate(e.date);
+      return eDate && eDate.getMonth() === targetMonth &&
+        eDate.getFullYear() === targetYear &&
         e.patient === contract.patientName &&
         (e.status === 'confirmed' || e.status === 'unexcused_absence');
     }).length;
 
-    // Se tiver valor de sessão, calcula por sessão realizada
     if (contract.value > 0) {
       return contract.value * sessionsInMonth;
     }
@@ -869,7 +883,8 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
                               const contract = contracts.find(c => c.patientId === p.id);
                               if (!contract) return;
 
-                              const status = getPaymentStatus(p.id, m, y, contract.paymentDay, paymentStatuses);
+                              const statusData = getPaymentData(p.id, m, y, contract.paymentDay, paymentStatuses);
+                              const status = statusData.status;
 
                               if (status === 'atrasado') {
                                 alerts.push({
@@ -1432,8 +1447,8 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
 
                 patients.forEach(p => {
                   const contract = contracts.find(c => c.patientId === p.id);
-                  const monthlyValue = contract ? calculateMonthlyValue(contract) : 0;
-                  const status = getPaymentStatus(p.id, m, y, contract?.paymentDay, paymentStatuses);
+                  const monthlyValue = contract ? calculateMonthlyValue(contract, m, y) : 0;
+                  const status = getPaymentData(p.id, m, y, contract?.paymentDay, paymentStatuses).status;
 
                   if (status === 'pago') {
                     totalPago += monthlyValue;
@@ -1451,12 +1466,13 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
                 // Cálculo de Inadimplência do Ano
                 Object.keys(paymentStatuses).forEach(key => {
                   const [pId, month, year] = key.split('-');
-                  if (year === String(y) && paymentStatuses[key] === 'inadimplente') {
-                    const patient = patients.find(p => p.id === Number(pId));
+                  const entry = paymentStatuses[key];
+                  const status = typeof entry === 'object' ? entry.status : entry;
+
+                  if (year === String(y) && status === 'inadimplente') {
                     const contract = contracts.find(c => c.patientId === Number(pId));
                     if (contract) {
-                      // Valor aproximado baseado no contrato atual (já que não temos histórico de valor por mês)
-                      totalInadimplenteAno += calculateMonthlyValue(contract);
+                      totalInadimplenteAno += calculateMonthlyValue(contract, Number(month), Number(year));
                       inadimplenteClients.add(pId);
                     }
                   }
@@ -1927,7 +1943,9 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
                     });
 
                     if (monthEvents.length > 0) {
-                      const status = getPaymentStatus(selectedFinancePatient.id, d.getMonth(), d.getFullYear(), contract?.paymentDay, paymentStatuses);
+                      const pData = getPaymentData(selectedFinancePatient.id, d.getMonth(), d.getFullYear(), contract?.paymentDay, paymentStatuses);
+                      const status = pData.status;
+                      const displayValue = calculateMonthlyValue(contract, d.getMonth(), d.getFullYear());
 
                       let statusBadge = null;
                       if (status === 'pago') statusBadge = <span className="status-badge active" style={{ background: '#10b981', color: 'white' }}>Pago</span>;
@@ -1942,24 +1960,42 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
                           borderRadius: '12px',
                           display: 'flex',
                           flexDirection: 'column',
-                          gap: '10px',
+                          gap: '12px',
                           borderLeft: `4px solid ${status === 'pago' ? '#10b981' : (status === 'atrasado' || status === 'inadimplente' ? '#f43f5e' : '#f59e0b')}`
                         }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div className="month-info">
-                              <strong style={{ textTransform: 'capitalize', display: 'block', fontSize: '1.05rem' }}>{monthName}</strong>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '20px' }}>
+                            <div className="month-info" style={{ flex: 1 }}>
+                              <strong style={{ textTransform: 'capitalize', display: 'block', fontSize: '1.05rem', marginBottom: '4px' }}>{monthName}</strong>
                               <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{monthEvents.length} sessões realizadas</span>
                             </div>
-                            <div className="month-total" style={{ textAlign: 'right' }}>
-                              <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>R$ {monthEvents.length * (selectedFinancePatient.sessionValue || 0)}</div>
+                            <div className="month-total" style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 'bold', fontSize: '1.1rem' }}>
+                                <span>R$</span>
+                                <input
+                                  type="number"
+                                  value={displayValue}
+                                  onChange={(e) => handleUpdatePaymentStatus(selectedFinancePatient.id, d.getMonth(), d.getFullYear(), null, e.target.value)}
+                                  style={{
+                                    width: '80px',
+                                    border: 'none',
+                                    background: 'rgba(0,0,0,0.05)',
+                                    borderRadius: '4px',
+                                    padding: '2px 6px',
+                                    fontWeight: 'bold',
+                                    fontSize: '1.1rem',
+                                    textAlign: 'right',
+                                    color: 'inherit'
+                                  }}
+                                />
+                              </div>
                               {statusBadge}
                             </div>
                           </div>
 
-                          <div style={{ display: 'flex', gap: '8px', borderTop: '1px solid var(--border-light)', paddingTop: '8px' }}>
-                            <button className="btn-outline-small" style={{ fontSize: '0.7rem' }} onClick={() => handleUpdatePaymentStatus(selectedFinancePatient.id, d.getMonth(), d.getFullYear(), 'pago')}>Me pagou</button>
-                            <button className="btn-outline-small" style={{ fontSize: '0.7rem' }} onClick={() => handleUpdatePaymentStatus(selectedFinancePatient.id, d.getMonth(), d.getFullYear(), 'inadimplente')}>Inadimplente</button>
-                            <button className="btn-outline-small" style={{ fontSize: '0.7rem', opacity: 0.6 }} onClick={() => handleUpdatePaymentStatus(selectedFinancePatient.id, d.getMonth(), d.getFullYear(), 'pendente')}>Resetar</button>
+                          <div style={{ display: 'flex', gap: '8px', borderTop: '1px solid var(--border-light)', paddingTop: '10px' }}>
+                            <button className="btn-outline-small" style={{ fontSize: '0.7rem', padding: '5px 10px' }} onClick={() => handleUpdatePaymentStatus(selectedFinancePatient.id, d.getMonth(), d.getFullYear(), 'pago')}>Me pagou</button>
+                            <button className="btn-outline-small" style={{ fontSize: '0.7rem', padding: '5px 10px' }} onClick={() => handleUpdatePaymentStatus(selectedFinancePatient.id, d.getMonth(), d.getFullYear(), 'inadimplente')}>Inadimplente</button>
+                            <button className="btn-outline-small" style={{ fontSize: '0.7rem', padding: '5px 10px', opacity: 0.6 }} onClick={() => handleUpdatePaymentStatus(selectedFinancePatient.id, d.getMonth(), d.getFullYear(), 'pendente')}>Resetar</button>
                           </div>
                         </div>
                       );
