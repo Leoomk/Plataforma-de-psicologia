@@ -22,7 +22,8 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
-  Edit3
+  Edit3,
+  Download
 } from 'lucide-react';
 import './App.css';
 
@@ -93,6 +94,8 @@ function App() {
     avatar: null,
     theme: 'magenta'
   }));
+
+  const [lastBackupDate, setLastBackupDate] = useState(() => loadInitialState('lastBackupDate', null));
 
   const [patients, setPatients] = useState(() => loadInitialState('patients', [
     {
@@ -208,6 +211,11 @@ function App() {
     setEditingContract(null);
   };
 
+  useEffect(() => {
+    saveState('lastBackupDate', lastBackupDate);
+  }, [lastBackupDate]);
+
+
   const handleStartRecording = () => {
     setIsRecording(true);
     setTranscriptionStatus('recording');
@@ -238,6 +246,7 @@ function App() {
   };
 
   const handleExportData = () => {
+    const now = new Date();
     const backup = {
       userProfile,
       patients,
@@ -245,15 +254,16 @@ function App() {
       contracts,
       payments,
       version: '1.0',
-      exportedAt: new Date().toISOString()
+      exportedAt: now.toISOString()
     };
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `backup_psicologia_${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `backup_psicologia_${now.toISOString().split('T')[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
+    setLastBackupDate(now.toISOString());
   };
 
   const handleImportData = (e) => {
@@ -269,7 +279,14 @@ function App() {
             setEvents(imported.events);
             setContracts(imported.contracts || contracts);
             setPayments(imported.payments || payments);
-            alert('Dados importados com sucesso!');
+
+            if (imported.exportedAt) {
+              setLastBackupDate(imported.exportedAt);
+            } else {
+              setLastBackupDate(new Date().toISOString());
+            }
+
+            alert('Dados do Baú de Tesouro recuperados com sucesso!');
           } else {
             alert('Arquivo de backup inválido.');
           }
@@ -1285,6 +1302,15 @@ function App() {
 
               <div className="settings-section" style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1px solid var(--border-light)' }}>
                 <label style={{ display: 'block', marginBottom: '12px', fontWeight: '600' }}>Gestão de Dados</label>
+
+                {lastBackupDate && (
+                  <div style={{ marginBottom: '15px', padding: '10px', background: 'var(--bg-secondary)', borderRadius: '8px', borderLeft: '4px solid var(--primary)' }}>
+                    <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                      <strong>Último Backup:</strong> {new Date(lastBackupDate).toLocaleDateString('pt-BR')} às {new Date(lastBackupDate).toLocaleTimeString('pt-BR')}
+                    </p>
+                  </div>
+                )}
+
                 <div className="backup-controls" style={{ display: 'flex', gap: '12px' }}>
                   <button className="btn-outline-small" onClick={handleExportData}>
                     <Download size={18} />
