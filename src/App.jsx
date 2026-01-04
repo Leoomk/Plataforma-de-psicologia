@@ -23,7 +23,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Edit3,
-  Download
+  Download,
+  Database
 } from 'lucide-react';
 import './App.css';
 
@@ -493,6 +494,12 @@ function App() {
             active={activeTab === 'marketing'}
             onClick={() => setActiveTab('marketing')}
           />
+          <SidebarItem
+            icon={Database}
+            label="Gestão de Dados"
+            active={activeTab === 'data_management'}
+            onClick={() => setActiveTab('data_management')}
+          />
         </nav>
 
         <div className="sidebar-footer">
@@ -507,6 +514,14 @@ function App() {
           <div className="header-search">
             <Search size={18} />
             <input type="text" placeholder="Buscar pacientes, sessões..." />
+          </div>
+
+          <div style={{ marginRight: 'auto', marginLeft: '20px' }}>
+            {lastBackupDate && !isNaN(new Date(lastBackupDate).getTime()) && (
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', background: 'var(--bg-secondary)', padding: '6px 12px', borderRadius: '20px', border: '1px solid var(--border-light)' }}>
+                💾 Utilizando arquivo salvo em <strong>{new Date(lastBackupDate).toLocaleDateString('pt-BR')}</strong>
+              </span>
+            )}
           </div>
 
           <div className="header-actions">
@@ -1233,6 +1248,76 @@ function App() {
               </div>
             </div>
           )}
+
+          {activeTab === 'data_management' && (
+            <div className="data-management-view animate-fade-in">
+              <div className="view-header">
+                <h1>Gestão de Dados</h1>
+                <p>Exporte e importe seus dados para manter sua clínica segura.</p>
+              </div>
+
+              <div className="card-premium" style={{ maxWidth: '800px', margin: '0 auto', textAlign: 'center', padding: '40px' }}>
+                <Database size={64} style={{ color: 'var(--primary)', marginBottom: '20px', opacity: '0.8' }} />
+                <h2 style={{ marginBottom: '10px' }}>Backup e Segurança</h2>
+                <p style={{ color: 'var(--text-muted)', marginBottom: '40px', maxWidth: '500px', margin: '0 auto 40px' }}>
+                  Salve uma cópia de segurança de todos os seus pacientes, prontuários e financeiro.
+                  Você pode usar este arquivo para restaurar seus dados em outro computador.
+                </p>
+
+                <div className="backup-actions-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px', maxWidth: '600px', margin: '0 auto' }}>
+
+                  {/* Card Exportar */}
+                  <div className="action-card" style={{
+                    padding: '30px',
+                    borderRadius: '16px',
+                    border: '2px dashed var(--border-light)',
+                    background: 'var(--bg-secondary)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                    onClick={handleExportData}
+                    onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--primary)'}
+                    onMouseOut={(e) => e.currentTarget.style.borderColor = 'var(--border-light)'}
+                  >
+                    <div style={{ background: 'rgba(var(--primary-rgb), 0.1)', width: '60px', height: '60px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 15px' }}>
+                      <Download size={32} style={{ color: 'var(--primary)' }} />
+                    </div>
+                    <h3 style={{ marginBottom: '8px' }}>Exportar Dados</h3>
+                    <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Baixar arquivo .json atual</p>
+                  </div>
+
+                  {/* Card Importar */}
+                  <label className="action-card" style={{
+                    padding: '30px',
+                    borderRadius: '16px',
+                    border: '2px dashed var(--border-light)',
+                    background: 'var(--bg-secondary)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    display: 'block'
+                  }}
+                    onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--primary)'}
+                    onMouseOut={(e) => e.currentTarget.style.borderColor = 'var(--border-light)'}
+                  >
+                    <div style={{ background: 'rgba(var(--primary-rgb), 0.1)', width: '60px', height: '60px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 15px' }}>
+                      <Upload size={32} style={{ color: 'var(--primary)' }} />
+                    </div>
+                    <h3 style={{ marginBottom: '8px' }}>Importar Dados</h3>
+                    <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Restaurar de um arquivo</p>
+                    <input type="file" accept=".json" onChange={handleImportData} style={{ display: 'none' }} />
+                  </label>
+
+                </div>
+
+                {lastBackupDate && !isNaN(new Date(lastBackupDate).getTime()) && (
+                  <div style={{ marginTop: '40px', padding: '15px', background: '#f0fdf4', borderRadius: '8px', color: '#166534', display: 'inline-block' }}>
+                    <CheckCircle2 size={16} style={{ marginRight: '8px', verticalAlign: 'text-bottom' }} />
+                    Último backup realizado em <strong>{new Date(lastBackupDate).toLocaleDateString('pt-BR')} às {new Date(lastBackupDate).toLocaleTimeString('pt-BR')}</strong>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </section>
       </main>
 
@@ -1300,29 +1385,7 @@ function App() {
                 Salvar Alterações
               </button>
 
-              <div className="settings-section" style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1px solid var(--border-light)' }}>
-                <label style={{ display: 'block', marginBottom: '12px', fontWeight: '600' }}>Gestão de Dados</label>
 
-                {lastBackupDate && !isNaN(new Date(lastBackupDate).getTime()) && (
-                  <div style={{ marginBottom: '15px', padding: '10px', background: 'var(--bg-secondary)', borderRadius: '8px', borderLeft: '4px solid var(--primary)' }}>
-                    <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                      <strong>Último Backup:</strong> {new Date(lastBackupDate).toLocaleDateString('pt-BR')} às {new Date(lastBackupDate).toLocaleTimeString('pt-BR')}
-                    </p>
-                  </div>
-                )}
-
-                <div className="backup-controls" style={{ display: 'flex', gap: '12px' }}>
-                  <button className="btn-outline-small" onClick={handleExportData}>
-                    <Download size={18} />
-                    Exportar Backup
-                  </button>
-                  <label className="btn-outline-small" style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Upload size={18} />
-                    Importar Backup
-                    <input type="file" accept=".json" onChange={handleImportData} style={{ display: 'none' }} />
-                  </label>
-                </div>
-              </div>
             </div>
           </div>
         </div>
