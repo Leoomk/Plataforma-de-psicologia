@@ -281,6 +281,7 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
     billingMode: 'Mensal',
     paymentDay: 5,
     dueDaysAfterSession: 2,
+    credits: 0,
     requiresNF: false
   });
   const [selectedFinancePatient, setSelectedFinancePatient] = useState(null);
@@ -550,6 +551,23 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
     const pData = getPaymentData(contract.patientId, targetMonth, targetYear, contract, paymentStatuses, events);
     if (pData.customValue !== null) return Number(pData.customValue);
 
+    if (contract.billingMode === 'Mensal') {
+      const prevMonthDate = new Date(targetYear, targetMonth - 1, 1);
+      const prevMonth = prevMonthDate.getMonth();
+      const prevYear = prevMonthDate.getFullYear();
+
+      const sessionsInPrevMonth = events.filter(e => {
+        const eDate = parseLocalDate(e.date);
+        return eDate && eDate.getMonth() === prevMonth &&
+          eDate.getFullYear() === prevYear &&
+          e.patient === contract.patientName &&
+          (e.status === 'confirmed' || e.status === 'unexcused_absence');
+      }).length;
+
+      return contract.value * sessionsInPrevMonth;
+    }
+
+    // Mensal Antecipado ou Por Sessão (No mês atual)
     const sessionsInMonth = events.filter(e => {
       const eDate = parseLocalDate(e.date);
       return eDate && eDate.getMonth() === targetMonth &&
@@ -599,7 +617,7 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
       setNewPatient({
         name: '', email: '', phone: '', cpf: '',
         address: '', sessionValue: 200, billingMode: 'Mensal',
-        paymentDay: 5, dueDaysAfterSession: 2, requiresNF: false
+        paymentDay: 5, dueDaysAfterSession: 2, credits: 0, requiresNF: false
       });
       setShowAddPatientModal(false);
     }
@@ -636,7 +654,7 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
       setNewPatient({
         name: '', email: '', phone: '', cpf: '',
         address: '', sessionValue: 200, billingMode: 'Mensal',
-        paymentDay: 5, dueDaysAfterSession: 2, requiresNF: false
+        paymentDay: 5, dueDaysAfterSession: 2, credits: 0, requiresNF: false
       });
       setShowAddPatientModal(false);
     }
@@ -656,6 +674,17 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
 
   const updateEventStatus = (id, newStatus) => {
     setEvents(events.map(e => e.id === id ? { ...e, status: newStatus } : e));
+
+    // Consumo de créditos para pacientes antecipados
+    if (newStatus === 'confirmed') {
+      const event = events.find(e => e.id === id);
+      const patient = patients.find(p => p.name === event.patient);
+      const contract = contracts.find(c => c.patientId === patient?.id);
+
+      if (contract?.billingMode === 'Mensal Antecipado' && patient) {
+        setPatients(patients.map(p => p.id === patient.id ? { ...p, credits: (p.credits || 0) - 1 } : p));
+      }
+    }
   };
 
   const handleReschedule = (event) => {
@@ -2033,7 +2062,7 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
               <div className="header-info">
                 <h2>{selectedFinancePatient.name}</h2>
                 <span className="patient-meta" style={{ display: 'flex', gap: '15px', color: 'var(--text-muted)', marginTop: '5px' }}>
-                  <span><Calendar size={14} style={{ marginRight: '4px', verticalAlign: 'text-bottom' }} /> {selectedFinancePatient.frequency}</span>
+                  <span><Calendar size={14} style={{ marginRight: '4px', verticalAlign: 'text-bottom' }} /> {contracts.find(c => c.patientId === selectedFinancePatient.id)?.billingMode || 'Mensal'}</span>
                   <span><DollarSign size={14} style={{ marginRight: '4px', verticalAlign: 'text-bottom' }} /> {formatBRL(selectedFinancePatient.sessionValue)} / sessão</span>
                 </span>
               </div>
@@ -2045,16 +2074,25 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
             <div className="settings-body custom-scrollbar">
 
               <div className="finance-summary-cards" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '30px' }}>
-                <div className="card-premium" style={{ background: 'linear-gradient(135deg, rgba(var(--primary-rgb), 0.1) 0%, rgba(var(--primary-rgb), 0.05) 100%)', border: '1px solid rgba(var(--primary-rgb), 0.2)' }}>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'block', marginBottom: '5px' }}>Total Investido (Lifetime)</span>
-                  <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: 'var(--primary)' }}>
-                    {formatBRL(events.filter(e => e.patient === selectedFinancePatient.name && (e.status === 'confirmed' || e.status === 'unexcused_absence')).length * selectedFinancePatient.sessionValue)}
+                {contracts.find(c => c.patientId === selectedFinancePatient.id)?.billingMode === 'Mensal Antecipado' ? (
+                  <div className="card-premium" style={{ background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', color: 'white' }}>
+                    <span style={{ fontSize: '0.85rem', opacity: 0.9, display: 'block', marginBottom: '5px' }}>Saldo de Créditos</span>
+                    <div style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>
+                      {selectedFinancePatient.credits || 0} sessões
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="card-premium" style={{ background: 'linear-gradient(135deg, rgba(var(--primary-rgb), 0.1) 0%, rgba(var(--primary-rgb), 0.05) 100%)', border: '1px solid rgba(var(--primary-rgb), 0.2)' }}>
+                    <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'block', marginBottom: '5px' }}>Engajamento (Lifetime)</span>
+                    <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: 'var(--primary)' }}>
+                      {events.filter(e => e.patient === selectedFinancePatient.name && (e.status === 'confirmed' || e.status === 'unexcused_absence')).length} sessões
+                    </div>
+                  </div>
+                )}
                 <div className="card-premium">
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'block', marginBottom: '5px' }}>Total de Sessões</span>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'block', marginBottom: '5px' }}>Total Investido</span>
                   <div style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>
-                    {events.filter(e => e.patient === selectedFinancePatient.name && (e.status === 'confirmed' || e.status === 'unexcused_absence')).length}
+                    {formatBRL(events.filter(e => e.patient === selectedFinancePatient.name && (e.status === 'confirmed' || e.status === 'unexcused_absence')).length * selectedFinancePatient.sessionValue)}
                   </div>
                 </div>
               </div>
@@ -2132,7 +2170,19 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
                           </div>
 
                           <div style={{ display: 'flex', gap: '8px', borderTop: '1px solid var(--border-light)', paddingTop: '10px' }}>
-                            <button className="btn-outline-small" style={{ fontSize: '0.7rem', padding: '5px 10px' }} onClick={() => handleUpdatePaymentStatus(selectedFinancePatient.id, d.getMonth(), d.getFullYear(), 'pago')}>Me pagou</button>
+                            {contract?.billingMode === 'Mensal Antecipado' ? (
+                              <button className="btn-outline-small" style={{ fontSize: '0.7rem', padding: '5px 10px', background: 'rgba(var(--primary-rgb), 0.1)', borderColor: 'var(--primary)', color: 'var(--primary)' }} onClick={() => {
+                                const qty = prompt("Quantas sessões o cliente está comprando?", "4");
+                                if (qty) {
+                                  handleUpdatePaymentStatus(selectedFinancePatient.id, d.getMonth(), d.getFullYear(), 'pago');
+                                  setPatients(patients.map(p => p.id === selectedFinancePatient.id ? { ...p, credits: (p.credits || 0) + Number(qty) } : p));
+                                }
+                              }}>
+                                <Plus size={12} style={{ marginRight: '4px' }} /> Antecipado
+                              </button>
+                            ) : (
+                              <button className="btn-outline-small" style={{ fontSize: '0.7rem', padding: '5px 10px' }} onClick={() => handleUpdatePaymentStatus(selectedFinancePatient.id, d.getMonth(), d.getFullYear(), 'pago')}>Me pagou</button>
+                            )}
                             <button className="btn-outline-small" style={{ fontSize: '0.7rem', padding: '5px 10px' }} onClick={() => handleUpdatePaymentStatus(selectedFinancePatient.id, d.getMonth(), d.getFullYear(), 'inadimplente')}>Inadimplente</button>
                             <button className="btn-outline-small" style={{ fontSize: '0.7rem', padding: '5px 10px', opacity: 0.6 }} onClick={() => handleUpdatePaymentStatus(selectedFinancePatient.id, d.getMonth(), d.getFullYear(), 'pendente')}>Resetar</button>
                           </div>
@@ -2242,7 +2292,8 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
                       onChange={(e) => setNewPatient({ ...newPatient, billingMode: e.target.value })}
                       className="form-input"
                     >
-                      <option value="Mensal">Mensal</option>
+                      <option value="Mensal">Mensal (Pós-pago)</option>
+                      <option value="Mensal Antecipado">Mensal Antecipado (Créditos)</option>
                       <option value="Por Sessão">Por Sessão</option>
                     </select>
                   </div>
