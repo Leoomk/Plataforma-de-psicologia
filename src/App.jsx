@@ -941,11 +941,32 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
                                 const statusData = getPaymentData(p.id, checkMonth, checkYear, contract, paymentStatuses, events);
 
                                 if (statusData.status === 'atrasado') {
-                                  const label = i > 0
-                                    ? `Atrasado: ${checkDate.toLocaleDateString('pt-BR', { month: 'long' })}`
-                                    : (contract.billingMode === 'Por Sessão'
-                                      ? 'Prazos de sessão vencidos'
-                                      : `Vencimento passou dia ${contract.paymentDay || 5}`);
+                                  let label = '';
+                                  if (contract.billingMode === 'Por Sessão') {
+                                    const monthEvents = events.filter(e => {
+                                      const ed = parseLocalDate(e.date);
+                                      return ed && ed.getMonth() === checkMonth && ed.getFullYear() === checkYear &&
+                                        e.patient === p.name && (e.status === 'confirmed' || e.status === 'unexcused_absence');
+                                    });
+                                    const firstOverdue = monthEvents.find(e => {
+                                      const ed = parseLocalDate(e.date);
+                                      const sd = new Date(ed);
+                                      sd.setDate(sd.getDate() + (contract.dueDaysAfterSession || 2));
+                                      return now > sd;
+                                    }) || monthEvents[0];
+
+                                    if (firstOverdue) {
+                                      const ed = parseLocalDate(firstOverdue.date);
+                                      const sd = new Date(ed);
+                                      sd.setDate(sd.getDate() + (contract.dueDaysAfterSession || 2));
+                                      label = `Atrasado: ${sd.toLocaleDateString('pt-BR')}`;
+                                    } else {
+                                      label = 'Prazos de sessão vencidos';
+                                    }
+                                  } else {
+                                    const day = contract.paymentDay || 5;
+                                    label = `Atrasado: ${String(day).padStart(2, '0')}/${String(checkMonth + 1).padStart(2, '0')}/${checkYear}`;
+                                  }
 
                                   alerts.push({
                                     type: 'atrasado',
