@@ -275,15 +275,18 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
     const key = `${patientId}-${month}-${year}`;
     setPaymentStatuses(prev => {
       const newState = { ...prev };
-      if (status === 'pendente' && customValue === undefined) {
-        delete newState[key]; // Retorna para a lógica automática completa
-      } else {
-        const current = typeof prev[key] === 'object' ? prev[key] : { status: prev[key] || '' };
-        newState[key] = {
-          status: status !== null ? status : current.status,
-          customValue: customValue !== undefined ? customValue : current.customValue
-        };
+      const current = typeof prev[key] === 'object' ? prev[key] : { status: prev[key] || '', customValue: null };
+
+      newState[key] = {
+        status: status !== null ? status : current.status,
+        customValue: customValue !== undefined ? customValue : (current.customValue || null)
+      };
+
+      // Só deleta se não tiver nem status personalizado nem valor manual (limpeza de dados vazios)
+      if (newState[key].status === 'pendente' && newState[key].customValue === null) {
+        delete newState[key];
       }
+
       return newState;
     });
   };
