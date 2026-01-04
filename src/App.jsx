@@ -661,7 +661,7 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
       <aside className="sidebar glass-effect">
         <div className="sidebar-logo">
           <div className="logo-icon">💜</div>
-          <h2>Plataforma de Psicologia</h2>
+          <h2>Plataforma de<br />Psicologia</h2>
         </div>
 
         <nav className="sidebar-nav">
