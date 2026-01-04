@@ -28,9 +28,47 @@ import {
   Copy,
   Save,
   Trash2,
-  MicOff
+  MicOff,
+  User,
+  DollarSign
 } from 'lucide-react';
 import './App.css';
+
+const formatLocalDate = (dateStr) => {
+  if (!dateStr || dateStr === '-') return '-';
+  if (dateStr.includes('T')) dateStr = dateStr.split('T')[0];
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  return date.toLocaleDateString('pt-BR');
+};
+
+const parseLocalDate = (dateStr) => {
+  if (!dateStr) return null;
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
+
+const getPaymentStatus = (patientId, month, year, paymentDay, paymentStatuses) => {
+  const key = `${patientId}-${month}-${year}`;
+  const status = paymentStatuses[key];
+  if (status) return status;
+
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+  const today = now.getDate();
+
+  if (year < currentYear || (year === currentYear && month < currentMonth)) {
+    return "atrasado";
+  }
+
+  if (year === currentYear && month === currentMonth) {
+    if (today > (paymentDay || 5)) return "atrasado";
+    return "a_vencer";
+  }
+
+  return "a_vencer";
+};
 
 const SidebarItem = ({ icon: Icon, label, active, onClick }) => (
   <div
@@ -218,6 +256,21 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
     status: 'pending'
   });
 
+  const [paymentStatuses, setPaymentStatuses] = useState(() => loadInitialState('paymentStatuses', {}));
+
+  const handleUpdatePaymentStatus = (patientId, month, year, status) => {
+    const key = `${patientId}-${month}-${year}`;
+    setPaymentStatuses(prev => {
+      const newState = { ...prev };
+      if (status === 'pendente') {
+        delete newState[key]; // Retorna para a lógica automática
+      } else {
+        newState[key] = status;
+      }
+      return newState;
+    });
+  };
+
   // Efeito para persistência automática
   useEffect(() => {
     saveState('userProfile', userProfile);
@@ -238,6 +291,10 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
   useEffect(() => {
     saveState('payments', payments);
   }, [payments]);
+
+  useEffect(() => {
+    saveState('paymentStatuses', paymentStatuses);
+  }, [paymentStatuses]);
 
   // Aplicar tema inicial
   useEffect(() => {
@@ -797,24 +854,57 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
                       </div>
 
                       <div className="card-premium quick-actions">
-                        <h3>Atalhos Rápidos</h3>
-                        <div className="actions-grid">
-                          <button className="action-button" onClick={() => { setShowAddPatientModal(true); setEditingPatient(null); }}>
-                            <div className="action-icon"><Plus size={18} /></div>
-                            Novo Paciente
-                          </button>
-                          <button className="action-button" onClick={() => setActiveTab('calendar')}>
-                            <div className="action-icon"><Calendar size={18} /></div>
-                            Agenda
-                          </button>
-                          <button className="action-button" onClick={() => setActiveTab('records')}>
-                            <div className="action-icon"><Mic size={18} /></div>
-                            Nota IA
-                          </button>
-                          <button className="action-button" onClick={() => setActiveTab('finance')}>
-                            <div className="action-icon"><BarChart3 size={18} /></div>
-                            Financeiro
-                          </button>
+                        <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                          <h3 style={{ margin: 0 }}>Cobranças e Vencimentos</h3>
+                          <button className="btn-link" onClick={() => setActiveTab('finance')} style={{ fontSize: '0.8rem' }}>Ver Financeiro</button>
+                        </div>
+                        <div className="appointment-list" style={{ maxHeight: '350px', overflowY: 'auto' }}>
+                          {(() => {
+                            const alerts = [];
+                            const now = new Date();
+                            const m = now.getMonth();
+                            const y = now.getFullYear();
+
+                            patients.forEach(p => {
+                              const contract = contracts.find(c => c.patientId === p.id);
+                              if (!contract) return;
+
+                              const status = getPaymentStatus(p.id, m, y, contract.paymentDay, paymentStatuses);
+
+                              if (status === 'atrasado') {
+                                alerts.push({
+                                  type: 'atrasado',
+                                  patient: p,
+                                  contract: contract,
+                                  label: `Atrasado desde dia ${contract.paymentDay || 5}`
+                                });
+                              } else if (status === 'a_vencer') {
+                                const diff = (contract.paymentDay || 5) - now.getDate();
+                                if (diff >= 0 && diff <= 7) {
+                                  alerts.push({
+                                    type: 'vencendo',
+                                    patient: p,
+                                    contract: contract,
+                                    label: diff === 0 ? 'Vence HOJE' : `Vence em ${diff} dias`
+                                  });
+                                }
+                              }
+                            });
+
+                            return alerts.length > 0 ? alerts.map((alert, i) => (
+                              <div key={i} className="appointment-item" style={{ borderLeft: alert.type === 'atrasado' ? '4px solid #f43f5e' : '4px solid #f59e0b', paddingLeft: '12px', marginBottom: '8px' }}>
+                                <div className="patient-info">
+                                  <strong>{alert.patient.name}</strong>
+                                  <span style={{ fontSize: '0.8rem', color: alert.type === 'atrasado' ? '#f43f5e' : 'var(--text-muted)' }}>{alert.label}</span>
+                                </div>
+                                <div style={{ fontWeight: '600', marginRight: '10px', fontSize: '1rem' }}>R$ {calculateMonthlyValue(alert.contract)}</div>
+                                <button className="btn-action" style={{ padding: '6px 12px', fontSize: '0.8rem' }} onClick={() => {
+                                  setSelectedFinancePatient(alert.patient);
+                                  setShowFinanceDetail(true);
+                                }}>Ajustar</button>
+                              </div>
+                            )) : <p style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>Tudo em dia por aqui! ✨</p>;
+                          })()}
                         </div>
                       </div>
                     </div>
@@ -894,57 +984,64 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
                       <span className="patient-status-badge active">Em tratamento</span>
                     </div>
 
-                    <div className="detail-tabs" style={{ display: 'flex', gap: '10px', padding: '0 20px', marginBottom: '20px' }}>
+                    <div className="detail-tabs" style={{ display: 'flex', gap: '15px', padding: '0 20px', marginBottom: '25px' }}>
                       <button
-                        className={`tab-pill ${patientDetailTab === 'overview' ? 'active' : ''}`}
+                        className={`tab-pill`}
                         onClick={() => setPatientDetailTab('overview')}
                         style={{
                           flex: 1,
-                          padding: '10px',
+                          padding: '12px',
                           borderRadius: '8px',
-                          border: 'none',
-                          background: patientDetailTab === 'overview' ? 'var(--primary)' : 'var(--bg-secondary)',
-                          color: patientDetailTab === 'overview' ? '#fff' : 'var(--text-primary)',
+                          border: patientDetailTab === 'overview' ? '2px solid var(--primary)' : '1px solid var(--border-light)',
+                          background: patientDetailTab === 'overview' ? 'rgba(var(--primary-rgb), 0.1)' : 'var(--bg-secondary)',
+                          color: patientDetailTab === 'overview' ? 'var(--primary)' : 'var(--text-secondary)',
                           cursor: 'pointer',
-                          fontWeight: '500',
-                          transition: 'all 0.2s'
+                          fontWeight: '600',
+                          transition: 'all 0.2s',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
                         }}
                       >
-                        Visão Geral
+                        <User size={18} /> Visão Geral
                       </button>
                       <button
-                        className={`tab-pill ${patientDetailTab === 'sessions' ? 'active' : ''}`}
+                        className={`tab-pill`}
                         onClick={() => setPatientDetailTab('sessions')}
                         style={{
                           flex: 1,
-                          padding: '10px',
+                          padding: '12px',
                           borderRadius: '8px',
-                          border: 'none',
-                          background: patientDetailTab === 'sessions' ? 'var(--primary)' : 'var(--bg-secondary)',
-                          color: patientDetailTab === 'sessions' ? '#fff' : 'var(--text-primary)',
+                          border: patientDetailTab === 'sessions' ? '2px solid var(--primary)' : '1px solid var(--border-light)',
+                          background: patientDetailTab === 'sessions' ? 'rgba(var(--primary-rgb), 0.1)' : 'var(--bg-secondary)',
+                          color: patientDetailTab === 'sessions' ? 'var(--primary)' : 'var(--text-secondary)',
                           cursor: 'pointer',
-                          fontWeight: '500',
-                          transition: 'all 0.2s'
+                          fontWeight: '600',
+                          transition: 'all 0.2s',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
                         }}
                       >
-                        Sessões
+                        <Calendar size={18} /> Sessões
                       </button>
                       <button
-                        className={`tab-pill ${patientDetailTab === 'financial' ? 'active' : ''}`}
-                        onClick={() => setPatientDetailTab('financial')}
+                        className={`tab-pill`}
+                        onClick={() => {
+                          setSelectedFinancePatient(selectedPatientForDetail);
+                          setShowFinanceDetail(true);
+                          setSelectedPatientForDetail(null);
+                        }}
                         style={{
                           flex: 1,
-                          padding: '10px',
+                          padding: '12px',
                           borderRadius: '8px',
-                          border: 'none',
-                          background: patientDetailTab === 'financial' ? 'var(--primary)' : 'var(--bg-secondary)',
-                          color: patientDetailTab === 'financial' ? '#fff' : 'var(--text-primary)',
+                          border: '1px solid var(--border-light)',
+                          background: 'var(--bg-secondary)',
+                          color: 'var(--text-secondary)',
                           cursor: 'pointer',
-                          fontWeight: '500',
-                          transition: 'all 0.2s'
+                          fontWeight: '600',
+                          transition: 'all 0.2s',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
                         }}
                       >
-                        Financeiro
+                        <DollarSign size={18} /> Financeiro
                       </button>
                     </div>
 
@@ -990,7 +1087,7 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
                             .map(session => (
                               <div key={session.id} className="session-history-item" style={{ padding: '15px', borderBottom: '1px solid var(--border-light)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <div>
-                                  <div style={{ fontWeight: 'bold' }}>{new Date(session.date).toLocaleDateString('pt-BR')}</div>
+                                  <div style={{ fontWeight: 'bold' }}>{formatLocalDate(session.date)}</div>
                                   <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>{session.type} • {session.status === 'confirmed' ? 'Realizada' : 'Pendente'}</div>
                                 </div>
                                 <button
@@ -1006,58 +1103,6 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
                           {events.filter(e => e.patient === selectedPatientForDetail.name).length === 0 && (
                             <p style={{ color: 'var(--text-muted)', textAlign: 'center', marginTop: '20px' }}>Nenhuma sessão registrada.</p>
                           )}
-                        </div>
-                      )}
-
-                      {patientDetailTab === 'financial' && (
-                        <div className="financial-detail animate-slide-in">
-                          <h3>Resumo Financeiro</h3>
-
-                          <div className="info-card" style={{ marginBottom: '20px' }}>
-                            <div className="info-row">
-                              <span className="label">Valor por Sessão:</span>
-                              <span className="value" style={{ fontWeight: 'bold', color: 'var(--success)' }}>R$ {selectedPatientForDetail.sessionValue}</span>
-                            </div>
-                            <div className="info-row">
-                              <span className="label">Pagamento:</span>
-                              <span className="value">Mensal</span>
-                            </div>
-                          </div>
-
-                          <h3>Histórico Recente</h3>
-                          <div className="session-history-list">
-                            {(() => {
-                              const months = [];
-                              const now = new Date();
-                              for (let i = 0; i < 3; i++) {
-                                const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-                                const monthName = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-
-                                const monthEvents = events.filter(e => {
-                                  const eDate = new Date(e.date + 'T00:00:00');
-                                  return eDate.getMonth() === d.getMonth() &&
-                                    eDate.getFullYear() === d.getFullYear() &&
-                                    e.patient === selectedPatientForDetail.name &&
-                                    (e.status === 'confirmed' || e.status === 'unexcused_absence');
-                                });
-
-                                if (monthEvents.length > 0) {
-                                  months.push(
-                                    <div key={monthName} className="history-month-item" style={{ padding: '12px', background: 'var(--bg-secondary)', borderRadius: '8px', marginBottom: '10px' }}>
-                                      <div className="month-info" style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                        <strong style={{ textTransform: 'capitalize' }}>{monthName}</strong>
-                                        <span>R$ {monthEvents.length * (selectedPatientForDetail.sessionValue || 0)}</span>
-                                      </div>
-                                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                                        {monthEvents.length} sessões contabilizadas
-                                      </div>
-                                    </div>
-                                  );
-                                }
-                              }
-                              return months.length > 0 ? months : <p style={{ color: 'var(--text-muted)' }}>Sem registros financeiros recentes.</p>;
-                            })()}
-                          </div>
                         </div>
                       )}
                     </div>
@@ -1175,7 +1220,7 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
                     .map(event => {
                       const eventParts = event.date.split('-');
                       const dayDisplay = eventParts[2];
-                      const monthDisplay = new Date(event.date + 'T00:00:00').toLocaleDateString('pt-BR', { month: 'short' });
+                      const monthDisplay = parseLocalDate(event.date).toLocaleDateString('pt-BR', { month: 'short' });
 
                       return (
                         <div key={event.id} className="session-item">
@@ -1258,7 +1303,7 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
                         .sort((a, b) => new Date(b.date + 'T' + b.time) - new Date(a.date + 'T' + a.time))
                         .map(e => (
                           <option key={e.id} value={e.id}>
-                            {new Date(e.date).toLocaleDateString('pt-BR')} às {e.time} - {e.patient} ({e.type})
+                            {formatLocalDate(e.date)} às {e.time} - {e.patient} ({e.type})
                           </option>
                         ))}
                     </select>
@@ -1368,27 +1413,82 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
           {activeTab === 'finance' && (
             <div className="finance-view animate-fade-in">
               <div className="view-header">
-                <h1>Financeiro & Gestão Fiscal</h1>
-                <p>Monitore seu faturamento e otimize seus impostos (Anexo 3).</p>
+                <h1>Financeiro & Recebimentos</h1>
+                <p>Monitore seu faturamento real e previsões de recebimento.</p>
               </div>
 
-              <div className="stats-grid">
-                <div className="card-premium">
-                  <span className="card-label">Total a Receber (Mês)</span>
-                  <div className="card-value">R$ 12.450</div>
-                  <span className="card-trend positive">+12% vs mês anterior</span>
-                </div>
-                <div className="card-premium">
-                  <span className="card-label">Imposto Estimado (6%)</span>
-                  <div className="card-value">R$ 747</div>
-                  <span className="card-trend">Baseado no Anexo 3</span>
-                </div>
-                <div className="card-premium">
-                  <span className="card-label">Otimização Fiscal</span>
-                  <div className="card-value">Fator R</div>
-                  <span className="card-trend positive">Ativo (Pró-labore 28%)</span>
-                </div>
-              </div>
+              {(() => {
+                const now = new Date();
+                const m = now.getMonth();
+                const y = now.getFullYear();
+
+                let totalPago = 0;
+                let totalAVencer = 0;
+                let totalAtrasado = 0;
+                let totalImposto = 0;
+                let totalNFs = 0;
+                let totalInadimplenteAno = 0;
+                const inadimplenteClients = new Set();
+
+                patients.forEach(p => {
+                  const contract = contracts.find(c => c.patientId === p.id);
+                  const monthlyValue = contract ? calculateMonthlyValue(contract) : 0;
+                  const status = getPaymentStatus(p.id, m, y, contract?.paymentDay, paymentStatuses);
+
+                  if (status === 'pago') {
+                    totalPago += monthlyValue;
+                    if (contract?.requiresNF) {
+                      totalImposto += monthlyValue * 0.06;
+                      totalNFs++;
+                    }
+                  } else if (status === 'a_vencer') {
+                    totalAVencer += monthlyValue;
+                  } else if (status === 'atrasado') {
+                    totalAtrasado += monthlyValue;
+                  }
+                });
+
+                // Cálculo de Inadimplência do Ano
+                Object.keys(paymentStatuses).forEach(key => {
+                  const [pId, month, year] = key.split('-');
+                  if (year === String(y) && paymentStatuses[key] === 'inadimplente') {
+                    const patient = patients.find(p => p.id === Number(pId));
+                    const contract = contracts.find(c => c.patientId === Number(pId));
+                    if (contract) {
+                      // Valor aproximado baseado no contrato atual (já que não temos histórico de valor por mês)
+                      totalInadimplenteAno += calculateMonthlyValue(contract);
+                      inadimplenteClients.add(pId);
+                    }
+                  }
+                });
+
+                return (
+                  <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+                    <div className="card-premium" style={{ borderLeft: '4px solid #10b981' }}>
+                      <span className="card-label">Total Recebido (Mês)</span>
+                      <div className="card-value">R$ {totalPago}</div>
+                      <span className="card-trend positive">Valor em caixa</span>
+                    </div>
+                    <div className="card-premium" style={{ borderLeft: '4px solid #f59e0b' }}>
+                      <span className="card-label">A Receber (Previsto)</span>
+                      <div className="card-value">R$ {totalAVencer + totalAtrasado}</div>
+                      <span className="card-trend" style={{ fontSize: '0.75rem' }}>
+                        R$ {totalAVencer} a vencer | R$ {totalAtrasado} atrasados
+                      </span>
+                    </div>
+                    <div className="card-premium" style={{ borderLeft: '4px solid var(--primary)' }}>
+                      <span className="card-label">Imposto & NF (Mês)</span>
+                      <div className="card-value">R$ {totalImposto.toFixed(2)}</div>
+                      <span className="card-trend">{totalNFs} Notas Fiscais a emitir</span>
+                    </div>
+                    <div className="card-premium" style={{ borderLeft: '4px solid #f43f5e' }}>
+                      <span className="card-label">Inadimplência (Ano)</span>
+                      <div className="card-value">R$ {totalInadimplenteAno}</div>
+                      <span className="card-trend" style={{ color: '#f43f5e' }}>{inadimplenteClients.size} clientes inadimplentes</span>
+                    </div>
+                  </div>
+                );
+              })()}
 
               <div className="finance-layout">
                 <div className="finance-main">
@@ -1800,186 +1900,222 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
             <div className="modal-header">
               <div className="header-info">
                 <h2>{selectedFinancePatient.name}</h2>
-                <span className="patient-meta">{selectedFinancePatient.frequency} • R$ {selectedFinancePatient.sessionValue}/sessão</span>
+                <span className="patient-meta" style={{ display: 'flex', gap: '15px', color: 'var(--text-muted)', marginTop: '5px' }}>
+                  <span><Calendar size={14} style={{ marginRight: '4px', verticalAlign: 'text-bottom' }} /> {selectedFinancePatient.frequency}</span>
+                  <span><DollarSign size={14} style={{ marginRight: '4px', verticalAlign: 'text-bottom' }} /> R$ {selectedFinancePatient.sessionValue} / sessão</span>
+                </span>
               </div>
               <button className="btn-close" onClick={() => setShowFinanceDetail(false)}>
                 <X size={20} />
               </button>
             </div>
 
-            <div className="settings-body">
-              <div className="finance-tabs">
-                <div className="finance-tab active">Histórico de Sessões</div>
+            <div className="settings-body custom-scrollbar">
+
+              <div className="finance-summary-cards" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '30px' }}>
+                <div className="card-premium" style={{ background: 'linear-gradient(135deg, rgba(var(--primary-rgb), 0.1) 0%, rgba(var(--primary-rgb), 0.05) 100%)', border: '1px solid rgba(var(--primary-rgb), 0.2)' }}>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'block', marginBottom: '5px' }}>Total Investido (Lifetime)</span>
+                  <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: 'var(--primary)' }}>
+                    R$ {events.filter(e => e.patient === selectedFinancePatient.name && (e.status === 'confirmed' || e.status === 'unexcused_absence')).length * selectedFinancePatient.sessionValue}
+                  </div>
+                </div>
+                <div className="card-premium">
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'block', marginBottom: '5px' }}>Total de Sessões</span>
+                  <div style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>
+                    {events.filter(e => e.patient === selectedFinancePatient.name && (e.status === 'confirmed' || e.status === 'unexcused_absence')).length}
+                  </div>
+                </div>
               </div>
 
-              <div className="session-history-list">
+              <div className="finance-tabs" style={{ marginBottom: '20px' }}>
+                <div className="finance-tab active" style={{ borderBottom: '2px solid var(--primary)', paddingBottom: '10px', fontWeight: '600' }}>Histórico de Pagamentos</div>
+              </div>
+
+              <div className="session-history-list" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {(() => {
                   const months = [];
                   const now = new Date();
-                  for (let i = 0; i < 6; i++) {
+                  const contract = contracts.find(c => c.patientId === selectedFinancePatient.id);
+
+                  for (let i = 0; i < 12; i++) {
                     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
                     const monthName = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
 
                     const monthEvents = events.filter(e => {
-                      const eDate = new Date(e.date + 'T00:00:00');
-                      return eDate.getMonth() === d.getMonth() &&
+                      const eDate = parseLocalDate(e.date);
+                      return eDate && eDate.getMonth() === d.getMonth() &&
                         eDate.getFullYear() === d.getFullYear() &&
                         e.patient === selectedFinancePatient.name &&
                         (e.status === 'confirmed' || e.status === 'unexcused_absence');
                     });
 
-                    months.push(
-                      <div key={monthName} className="history-month-item">
-                        <div className="month-info">
-                          <strong style={{ textTransform: 'capitalize' }}>{monthName}</strong>
-                          <span>{monthEvents.length} sessões confirmadas</span>
+                    if (monthEvents.length > 0) {
+                      const status = getPaymentStatus(selectedFinancePatient.id, d.getMonth(), d.getFullYear(), contract?.paymentDay, paymentStatuses);
+
+                      let statusBadge = null;
+                      if (status === 'pago') statusBadge = <span className="status-badge active" style={{ background: '#10b981', color: 'white' }}>Pago</span>;
+                      else if (status === 'inadimplente') statusBadge = <span className="status-badge" style={{ background: '#f43f5e', color: 'white' }}>Inadimplente</span>;
+                      else if (status === 'atrasado') statusBadge = <span className="status-badge" style={{ background: '#f43f5e', color: 'white' }}>Em Atraso</span>;
+                      else statusBadge = <span className="status-badge" style={{ background: '#f59e0b', color: 'white' }}>A Vencer</span>;
+
+                      months.push(
+                        <div key={monthName} className="history-month-item" style={{
+                          padding: '15px',
+                          background: 'var(--bg-secondary)',
+                          borderRadius: '12px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '10px',
+                          borderLeft: `4px solid ${status === 'pago' ? '#10b981' : (status === 'atrasado' || status === 'inadimplente' ? '#f43f5e' : '#f59e0b')}`
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div className="month-info">
+                              <strong style={{ textTransform: 'capitalize', display: 'block', fontSize: '1.05rem' }}>{monthName}</strong>
+                              <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{monthEvents.length} sessões realizadas</span>
+                            </div>
+                            <div className="month-total" style={{ textAlign: 'right' }}>
+                              <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>R$ {monthEvents.length * (selectedFinancePatient.sessionValue || 0)}</div>
+                              {statusBadge}
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', gap: '8px', borderTop: '1px solid var(--border-light)', paddingTop: '8px' }}>
+                            <button className="btn-outline-small" style={{ fontSize: '0.7rem' }} onClick={() => handleUpdatePaymentStatus(selectedFinancePatient.id, d.getMonth(), d.getFullYear(), 'pago')}>Me pagou</button>
+                            <button className="btn-outline-small" style={{ fontSize: '0.7rem' }} onClick={() => handleUpdatePaymentStatus(selectedFinancePatient.id, d.getMonth(), d.getFullYear(), 'inadimplente')}>Inadimplente</button>
+                            <button className="btn-outline-small" style={{ fontSize: '0.7rem', opacity: 0.6 }} onClick={() => handleUpdatePaymentStatus(selectedFinancePatient.id, d.getMonth(), d.getFullYear(), 'pendente')}>Resetar</button>
+                          </div>
                         </div>
-                        <div className="month-total">
-                          R$ {monthEvents.length * (selectedFinancePatient.sessionValue || 0)}
-                        </div>
-                      </div>
-                    );
+                      );
+                    }
                   }
-                  return months;
+                  return months.length > 0 ? months : <div style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)' }}>Nenhum histórico financeiro encontrado.</div>;
                 })()}
               </div>
 
-              <div className="payment-history-section">
-                <h3>Pagamentos</h3>
-                <div className="payment-status-card">
-                  <div className="payment-indicator paid"></div>
-                  <div className="payment-details">
-                    <strong>Dezembro 2025</strong>
-                    <span>Status: Pago em 05/12</span>
-                  </div>
-                  <div className="payment-value">R$ {calculateMonthlyValue(contracts.find(c => c.patientId === selectedFinancePatient.id))}</div>
-                </div>
-              </div>
-
-              <div className="detail-actions">
-                <button className="btn-primary" onClick={() => handleSendNFEmail(contracts.find(c => c.patientId === selectedFinancePatient.id))}>
-                  Enviar Dados p/ NF
-                </button>
-                <button className="btn-outline" onClick={() => handleEditPatient(selectedFinancePatient)}>
-                  Editar Cadastro
+              <div className="detail-actions" style={{ marginTop: '30px', borderTop: '1px solid var(--border-light)', paddingTop: '20px' }}>
+                <button className="btn-primary" onClick={() => handleSendNFEmail(contracts.find(c => c.patientId === selectedFinancePatient.id))} style={{ width: '100%', justifyContent: 'center' }}>
+                  <FileText size={18} style={{ marginRight: '8px' }} /> Enviar Dados p/ Contabilidade (NF)
                 </button>
               </div>
             </div>
           </div>
         </div>
       )}
+
 
       {/* Modal de Novo Paciente */}
-      {showAddPatientModal && (
-        <div className="modal-overlay" onClick={() => setShowAddPatientModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Novo Paciente</h2>
-              <button className="btn-close" onClick={() => setShowAddPatientModal(false)}>
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="settings-body">
-              <div className="form-group">
-                <label>Nome Completo</label>
-                <input
-                  type="text"
-                  placeholder="Ex: Ana Silva"
-                  value={newPatient.name}
-                  onChange={(e) => setNewPatient({ ...newPatient, name: e.target.value })}
-                  className="form-input"
-                />
+      {
+        showAddPatientModal && (
+          <div className="modal-overlay" onClick={() => setShowAddPatientModal(false)}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2>Novo Paciente</h2>
+                <button className="btn-close" onClick={() => setShowAddPatientModal(false)}>
+                  <X size={20} />
+                </button>
               </div>
-              <div className="form-group-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+
+              <div className="settings-body">
                 <div className="form-group">
-                  <label>E-mail</label>
-                  <input
-                    type="email"
-                    placeholder="paciente@exemplo.com"
-                    value={newPatient.email}
-                    onChange={(e) => setNewPatient({ ...newPatient, email: e.target.value })}
-                    className="form-input"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Telefone</label>
+                  <label>Nome Completo</label>
                   <input
                     type="text"
-                    placeholder="(11) 99999-9999"
-                    value={newPatient.phone}
-                    onChange={(e) => setNewPatient({ ...newPatient, phone: e.target.value })}
+                    placeholder="Ex: Ana Silva"
+                    value={newPatient.name}
+                    onChange={(e) => setNewPatient({ ...newPatient, name: e.target.value })}
                     className="form-input"
                   />
                 </div>
-              </div>
-
-              <div className="form-group">
-                <label>Endereço Residencial</label>
-                <input
-                  type="text"
-                  placeholder="Rua, Número, Bairro, Cidade"
-                  value={newPatient.address}
-                  onChange={(e) => setNewPatient({ ...newPatient, address: e.target.value })}
-                  className="form-input"
-                />
-              </div>
-
-              <div className="form-group-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div className="form-group">
-                  <label>CPF (Necessário para NF)</label>
-                  <input
-                    type="text"
-                    placeholder="000.000.000-00"
-                    value={newPatient.cpf}
-                    onChange={(e) => setNewPatient({ ...newPatient, cpf: e.target.value })}
-                    className="form-input"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Valor por Sessão (R$)</label>
-                  <input
-                    type="number"
-                    value={newPatient.sessionValue}
-                    onChange={(e) => setNewPatient({ ...newPatient, sessionValue: Number(e.target.value) })}
-                    className="form-input"
-                  />
-                </div>
-              </div>
-
-              <div className="form-group-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div className="form-group">
-                  <label>Frequência</label>
-                  <select
-                    value={newPatient.frequency}
-                    onChange={(e) => setNewPatient({ ...newPatient, frequency: e.target.value })}
-                    className="form-input"
-                  >
-                    <option value="Semanal">Semanal</option>
-                    <option value="Quinzenal">Quinzenal</option>
-                    <option value="Mensal">Mensal</option>
-                  </select>
-                </div>
-                <div className="form-group" style={{ display: 'flex', alignItems: 'center', height: '100%', paddingTop: '28px' }}>
-                  <label className="checkbox-label">
+                <div className="form-group-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div className="form-group">
+                    <label>E-mail</label>
                     <input
-                      type="checkbox"
-                      checked={newPatient.requiresNF}
-                      onChange={(e) => setNewPatient({ ...newPatient, requiresNF: e.target.checked })}
+                      type="email"
+                      placeholder="paciente@exemplo.com"
+                      value={newPatient.email}
+                      onChange={(e) => setNewPatient({ ...newPatient, email: e.target.value })}
+                      className="form-input"
                     />
-                    Requer Nota Fiscal
-                  </label>
+                  </div>
+                  <div className="form-group">
+                    <label>Telefone</label>
+                    <input
+                      type="text"
+                      placeholder="(11) 99999-9999"
+                      value={newPatient.phone}
+                      onChange={(e) => setNewPatient({ ...newPatient, phone: e.target.value })}
+                      className="form-input"
+                    />
+                  </div>
                 </div>
-              </div>
 
-              <button className="btn-primary btn-save" onClick={editingPatient ? handleUpdatePatient : handleAddPatient}>
-                {editingPatient ? 'Salvar Alterações' : 'Cadastrar Paciente'}
-              </button>
+                <div className="form-group">
+                  <label>Endereço Residencial</label>
+                  <input
+                    type="text"
+                    placeholder="Rua, Número, Bairro, Cidade"
+                    value={newPatient.address}
+                    onChange={(e) => setNewPatient({ ...newPatient, address: e.target.value })}
+                    className="form-input"
+                  />
+                </div>
+
+                <div className="form-group-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div className="form-group">
+                    <label>CPF (Necessário para NF)</label>
+                    <input
+                      type="text"
+                      placeholder="000.000.000-00"
+                      value={newPatient.cpf}
+                      onChange={(e) => setNewPatient({ ...newPatient, cpf: e.target.value })}
+                      className="form-input"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Valor por Sessão (R$)</label>
+                    <input
+                      type="number"
+                      value={newPatient.sessionValue}
+                      onChange={(e) => setNewPatient({ ...newPatient, sessionValue: Number(e.target.value) })}
+                      className="form-input"
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div className="form-group">
+                    <label>Frequência</label>
+                    <select
+                      value={newPatient.frequency}
+                      onChange={(e) => setNewPatient({ ...newPatient, frequency: e.target.value })}
+                      className="form-input"
+                    >
+                      <option value="Semanal">Semanal</option>
+                      <option value="Quinzenal">Quinzenal</option>
+                      <option value="Mensal">Mensal</option>
+                    </select>
+                  </div>
+                  <div className="form-group" style={{ display: 'flex', alignItems: 'center', height: '100%', paddingTop: '28px' }}>
+                    <label className="checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={newPatient.requiresNF}
+                        onChange={(e) => setNewPatient({ ...newPatient, requiresNF: e.target.checked })}
+                      />
+                      Requer Nota Fiscal
+                    </label>
+                  </div>
+                </div>
+
+                <button className="btn-primary btn-save" onClick={editingPatient ? handleUpdatePatient : handleAddPatient}>
+                  {editingPatient ? 'Salvar Alterações' : 'Cadastrar Paciente'}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 }
 
