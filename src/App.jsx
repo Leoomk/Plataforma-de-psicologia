@@ -56,31 +56,53 @@ const parseLocalDate = (dateStr) => {
   return new Date(year, month - 1, day);
 };
 
-const getPaymentData = (patientId, month, year, paymentDay, paymentStatuses) => {
+const getPaymentData = (patientId, month, year, contract, paymentStatuses, events) => {
   const key = `${patientId}-${month}-${year}`;
   const entry = paymentStatuses[key];
 
-  // Normalizar entrada (pode ser string antiga ou objeto novo)
   const status = typeof entry === 'object' ? entry.status : entry;
   const customValue = typeof entry === 'object' ? entry.customValue : null;
 
-  if (status) return { status, customValue };
+  if (status && status !== 'pendente') return { status, customValue };
 
   const now = new Date();
-  const currentMonth = now.getMonth();
-  const currentYear = now.getFullYear();
-  const today = now.getDate();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-  if (year < currentYear || (year === currentYear && month < currentMonth)) {
-    return { status: "atrasado", customValue: null };
+  // Lógica se for MENSAL ou padrão antigo
+  if (!contract || contract.billingMode === 'Mensal') {
+    const paymentDay = contract?.paymentDay || 5;
+    const dueDate = new Date(year, month, paymentDay);
+
+    if (today > dueDate) return { status: "atrasado", customValue };
+    return { status: "a_vencer", customValue };
   }
 
-  if (year === currentYear && month === currentMonth) {
-    if (today > (paymentDay || 5)) return { status: "atrasado", customValue: null };
-    return { status: "a_vencer", customValue: null };
+  // Lógica se for POR SESSÃO
+  if (contract.billingMode === 'Por Sessão') {
+    const dueDays = contract.dueDaysAfterSession || 2;
+
+    const monthEvents = events.filter(e => {
+      const eDate = parseLocalDate(e.date);
+      return eDate && eDate.getMonth() === month &&
+        eDate.getFullYear() === year &&
+        e.patient === contract.patientName &&
+        (e.status === 'confirmed' || e.status === 'unexcused_absence');
+    });
+
+    if (monthEvents.length === 0) return { status: "a_vencer", customValue };
+
+    const hasOverdueSession = monthEvents.some(e => {
+      const eDate = parseLocalDate(e.date);
+      const dueDate = new Date(eDate);
+      dueDate.setDate(dueDate.getDate() + dueDays);
+      return today > dueDate;
+    });
+
+    if (hasOverdueSession) return { status: "atrasado", customValue };
+    return { status: "a_vencer", customValue };
   }
 
-  return { status: "a_vencer", customValue: null };
+  return { status: "a_vencer", customValue };
 };
 
 const SidebarItem = ({ icon: Icon, label, active, onClick }) => (
@@ -523,7 +545,7 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
     const targetYear = year !== undefined ? year : now.getFullYear();
 
     // Primeiro verifica se há valor manual salvo
-    const pData = getPaymentData(contract.patientId, targetMonth, targetYear, contract.paymentDay, paymentStatuses);
+    const pData = getPaymentData(contract.patientId, targetMonth, targetYear, contract, paymentStatuses, events);
     if (pData.customValue !== null) return Number(pData.customValue);
 
     const sessionsInMonth = events.filter(e => {
@@ -902,25 +924,60 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
                               const contract = contracts.find(c => c.patientId === p.id);
                               if (!contract) return;
 
-                              const statusData = getPaymentData(p.id, m, y, contract.paymentDay, paymentStatuses);
-                              const status = statusData.status;
+                              // Verificar os últimos 6 meses em busca de atrasos
+                              for (let i = 5; i >= 0; i--) {
+                                const checkDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                                const checkMonth = checkDate.getMonth();
+                                const checkYear = checkDate.getFullYear();
 
-                              if (status === 'atrasado') {
-                                alerts.push({
-                                  type: 'atrasado',
-                                  patient: p,
-                                  contract: contract,
-                                  label: `Atrasado desde dia ${contract.paymentDay || 5}`
-                                });
-                              } else if (status === 'a_vencer') {
-                                const diff = (contract.paymentDay || 5) - now.getDate();
-                                if (diff >= 0 && diff <= 7) {
+                                const statusData = getPaymentData(p.id, checkMonth, checkYear, contract, paymentStatuses, events);
+
+                                if (statusData.status === 'atrasado') {
+                                  const label = i > 0
+                                    ? `Atrasado: ${checkDate.toLocaleDateString('pt-BR', { month: 'long' })}`
+                                    : (contract.billingMode === 'Por Sessão'
+                                      ? 'Prazos de sessão vencidos'
+                                      : `Vencimento passou dia ${contract.paymentDay || 5}`);
+
                                   alerts.push({
-                                    type: 'vencendo',
+                                    type: 'atrasado',
                                     patient: p,
                                     contract: contract,
-                                    label: diff === 0 ? 'Vence HOJE' : `Vence em ${diff} dias`
+                                    label: label,
+                                    month: checkMonth,
+                                    year: checkYear
                                   });
+                                  break; // Mostra apenas o atraso mais antigo ou relevante para esse paciente
+                                } else if (i === 0 && statusData.status === 'a_vencer') {
+                                  // Se for o mês atual e estiver a vencer em breve
+                                  let diff = -1;
+                                  if (contract.billingMode === 'Mensal' || !contract.billingMode) {
+                                    diff = (contract.paymentDay || 5) - now.getDate();
+                                  } else {
+                                    // Para por sessão, ver a sessão mais próxima de vencer
+                                    const monthEvents = events.filter(e => {
+                                      const ed = parseLocalDate(e.date);
+                                      return ed && ed.getMonth() === m && ed.getFullYear() === y &&
+                                        e.patient === p.name && (e.status === 'confirmed' || e.status === 'unexcused_absence');
+                                    });
+                                    if (monthEvents.length > 0) {
+                                      const lastSessionDisp = parseLocalDate(monthEvents[monthEvents.length - 1].date);
+                                      const dueDate = new Date(lastSessionDisp);
+                                      dueDate.setDate(dueDate.getDate() + (contract.dueDaysAfterSession || 2));
+                                      diff = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                                    }
+                                  }
+
+                                  if (diff >= 0 && diff <= 7) {
+                                    alerts.push({
+                                      type: 'vencendo',
+                                      patient: p,
+                                      contract: contract,
+                                      label: diff === 0 ? 'Vence HOJE' : `Vence em ${diff} dias`,
+                                      month: m,
+                                      year: y
+                                    });
+                                  }
                                 }
                               }
                             });
@@ -1471,7 +1528,7 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
                 patients.forEach(p => {
                   const contract = contracts.find(c => c.patientId === p.id);
                   const monthlyValue = contract ? calculateMonthlyValue(contract, m, y) : 0;
-                  const status = getPaymentData(p.id, m, y, contract?.paymentDay, paymentStatuses).status;
+                  const status = getPaymentData(p.id, m, y, contract, paymentStatuses, events).status;
 
                   if (status === 'pago') {
                     totalPago += monthlyValue;
@@ -1966,7 +2023,7 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
                     });
 
                     if (monthEvents.length > 0) {
-                      const pData = getPaymentData(selectedFinancePatient.id, d.getMonth(), d.getFullYear(), contract?.paymentDay, paymentStatuses);
+                      const pData = getPaymentData(selectedFinancePatient.id, d.getMonth(), d.getFullYear(), contract, paymentStatuses, events);
                       const status = pData.status;
                       const displayValue = calculateMonthlyValue(contract, d.getMonth(), d.getFullYear());
 
