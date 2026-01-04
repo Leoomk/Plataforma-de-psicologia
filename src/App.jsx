@@ -65,6 +65,11 @@ const getPaymentData = (patientId, month, year, contract, paymentStatuses, event
 
   if (status && status !== 'pendente') return { status, customValue };
 
+  // Se for ANTECIPADO, não tem atraso por data
+  if (contract?.billingMode === 'Mensal Antecipado') {
+    return { status: "a_vencer", customValue };
+  }
+
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
@@ -72,6 +77,17 @@ const getPaymentData = (patientId, month, year, contract, paymentStatuses, event
   if (!contract || contract.billingMode === 'Mensal') {
     const paymentDay = contract?.paymentDay || 5;
     const dueDate = new Date(year, month, paymentDay);
+
+    // Ignorar meses sem atendimentos (valor 0) para não gerar alertas falsos de atraso
+    const prevMonthDate = new Date(year, month - 1, 1);
+    const prevMonth = prevMonthDate.getMonth();
+    const prevYear = prevMonthDate.getFullYear();
+    const sessions = events.filter(e => {
+      const eDate = parseLocalDate(e.date);
+      return eDate && eDate.getMonth() === prevMonth && eDate.getFullYear() === prevYear && e.patient === contract?.patientName && (e.status === 'confirmed' || e.status === 'unexcused_absence');
+    }).length;
+
+    if (sessions === 0 && customValue === null) return { status: "a_vencer", customValue };
 
     if (today > dueDate) return { status: "atrasado", customValue };
     return { status: "a_vencer", customValue };
@@ -936,7 +952,17 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
                                   <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{app.time}</span>
                                 </div>
                                 <div className="patient-info">
-                                  <strong>{app.patient}</strong>
+                                  <strong>
+                                    {app.patient}
+                                    {(() => {
+                                      const p = patients.find(patient => patient.name === app.patient);
+                                      const c = contracts.find(contract => contract.patientId === p?.id);
+                                      if (c?.billingMode === 'Mensal Antecipado' && (p?.credits || 0) <= 0) {
+                                        return <span title="Sem créditos" style={{ color: '#f43f5e', marginLeft: '4px' }}>🔴</span>;
+                                      }
+                                      return null;
+                                    })()}
+                                  </strong>
                                   <span>{app.type}</span>
                                 </div>
                                 <button className="btn-action" onClick={() => setActiveTab('records')}>Prontuário</button>
@@ -1331,7 +1357,17 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
                                 >
                                   <div className="event-main-info">
                                     <span className="event-time">{event.time}</span>
-                                    <span className="event-patient-name"> - {event.patient.split(' ')[0]}</span>
+                                    <span className="event-patient-name">
+                                      - {event.patient.split(' ')[0]}
+                                      {(() => {
+                                        const p = patients.find(patient => patient.name === event.patient);
+                                        const c = contracts.find(contract => contract.patientId === p?.id);
+                                        if (c?.billingMode === 'Mensal Antecipado' && (p?.credits || 0) <= 0) {
+                                          return <span title="Sem créditos" style={{ color: '#f43f5e', fontSize: '0.8rem', marginLeft: '2px' }}>🔴</span>;
+                                        }
+                                        return null;
+                                      })()}
+                                    </span>
                                   </div>
                                   <div className="event-actions-quick">
                                     <button title="Confirmar" className="action-dot-btn confirm" onClick={(e) => { e.stopPropagation(); updateEventStatus(event.id, 'confirmed'); }}><Check size={10} /></button>
@@ -1360,6 +1396,10 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
                   <div className="legend-item">
                     <div className="legend-dot pending"></div>
                     <span>Pendente</span>
+                  </div>
+                  <div className="legend-item">
+                    <div style={{ color: '#f43f5e', fontSize: '1.2rem', lineHeight: '0.8rem' }}>🔴</div>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Sem créditos</span>
                   </div>
                 </div>
               </div>
@@ -2311,7 +2351,7 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
                           max="31"
                         />
                       </>
-                    ) : (
+                    ) : newPatient.billingMode === 'Por Sessão' ? (
                       <>
                         <label>Dias p/ Vencer (após sessão)</label>
                         <input
@@ -2322,7 +2362,7 @@ Conclusão: implicações práticas bem delimitadas e sugestões objetivas para 
                           className="form-input"
                         />
                       </>
-                    )}
+                    ) : null}
                   </div>
                   <div className="form-group" style={{ display: 'flex', alignItems: 'center', height: '100%', paddingTop: '28px' }}>
                     <label className="checkbox-label">
