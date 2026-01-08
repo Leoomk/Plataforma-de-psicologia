@@ -68,7 +68,7 @@ const getPaymentData = (patientId, month, year, contract, paymentStatuses, event
 
   if (status && status !== 'pendente') return { status, customValue };
 
-  // Se for ANTECIPADO, não tem atraso por data
+  // Se for ANTECIPADO, Não tem atraso por data
   if (contract?.billingMode === 'Mensal Antecipado') {
     return { status: "a_vencer", customValue };
   }
@@ -81,7 +81,7 @@ const getPaymentData = (patientId, month, year, contract, paymentStatuses, event
     const paymentDay = contract?.paymentDay || 5;
     const dueDate = new Date(year, month, paymentDay);
 
-    // Ignorar meses sem atendimentos (valor 0) para nÉo gerar alertas falsos de atraso
+    // Ignorar meses sem atendimentos (valor 0) para Não gerar alertas falsos de atraso
     const prevMonthDate = new Date(year, month - 1, 1);
     const prevMonth = prevMonthDate.getMonth();
     const prevYear = prevMonthDate.getFullYear();
@@ -190,9 +190,9 @@ function App() {
     transcription: '',
     aiPrompt: `Sou psicóloga analista do comportamento. Quero que o chat me responda seguindo essas orientações:
 
-IntroduçÉo: breve contextualizaçÉo acadêmica, destacando relevÉncia teórica ou prática.
-Desenvolvimento: explicaçÉo técnica e coerente de conceitos da Psicologia Científica, articulada com exemplos aplicáveis em clínica, docência e tecnologia.
-ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para aprofundamento.
+Introdução: breve contextualização acadêmica, destacando relevância teórica ou prática.
+Desenvolvimento: explicação técnica e coerente de conceitos da Psicologia Científica, articulada com exemplos aplicáveis em clínica, docência e tecnologia.
+Conclusão: implicações práticas bem delimitadas e sugestões objetivas para aprofundamento.
 
 ## Linguagem Técnica e Acadêmica
 - Vocabulário técnico preciso, com definições claras.
@@ -266,7 +266,7 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
 
   const [events, setEvents] = useState(() => loadInitialState('events', [
     { id: 1, date: '2025-12-19', time: '14:00', patient: 'Ana Clara Silva', type: 'Psicoterapia', status: 'confirmed' },
-    { id: 2, date: '2025-12-19', time: '15:30', patient: 'Carlos Santos', type: 'AvaliaçÉo', status: 'confirmed' },
+    { id: 2, date: '2025-12-19', time: '15:30', patient: 'Carlos Santos', type: 'Avaliação', status: 'confirmed' },
     { id: 3, date: '2025-12-20', time: '10:00', patient: 'Juliana Mendes', type: 'Psicoterapia', status: 'pending' },
     { id: 4, date: '2025-12-21', time: '16:00', patient: 'Marcos Oliveira', type: 'Retorno', status: 'confirmed' },
   ]));
@@ -421,13 +421,16 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
       handleUpdatePaymentStatus(patient.id, month, year, 'pago', undefined, romaneio);
       setPatients(prev => prev.map(p => p.id === patient.id ? { ...p, credits: (p.credits || 0) + parseInt(credits) } : p));
 
+      // Atualizar o paciente selecionado para refletir no banner azul imediatamente
+      setSelectedFinancePatient(prev => prev ? { ...prev, credits: (prev.credits || 0) + parseInt(credits) } : null);
+
       setShowCreditModal(false);
       setCreditForm({ amount: '', credits: 1, date: new Date().toISOString().split('T')[0] });
     }
   };
 
 
-  // ConfiguraçÉo do Reconhecimento de Voz
+  // Configuração do Reconhecimento de Voz
   useEffect(() => {
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -482,7 +485,7 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
     }
   };
 
-  // Carregar dados quando seleciona uma sessÉo
+  // Carregar dados quando seleciona uma sessão
   useEffect(() => {
     if (selectedRecordEventId) {
       const event = events.find(e => e.id === Number(selectedRecordEventId));
@@ -493,10 +496,10 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
           aiAnalysis: event.prontuario.aiAnalysis || ''
         });
       } else {
-        // Resetar se nÉo tiver dados salvos (mantendo o prompt PadrÉo)
+        // Resetar se Não tiver dados salvos (mantendo o prompt Padrão)
         setRecordData(prev => ({
           transcription: '',
-          aiPrompt: prev.aiPrompt, // Mantém o prompt atual/PadrÉo
+          aiPrompt: prev.aiPrompt, // Mantém o prompt atual/Padrão
           aiAnalysis: ''
         }));
       }
@@ -638,7 +641,7 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
       return contract.value * sessionsInPrevMonth;
     }
 
-    // Mensal Antecipado ou Por sessÉo (No mês atual)
+    // Mensal Antecipado ou Por sessão (No mês atual)
     const sessionsInMonth = events.filter(e => {
       const eDate = parseLocalDate(e.date);
       return eDate && eDate.getMonth() === targetMonth &&
@@ -672,7 +675,7 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
       const patientToAdd = { ...newPatient, id, lastSession: '-' };
       setPatients([...patients, patientToAdd]);
 
-      // Criar contrato PadrÉo para o novo paciente
+      // Criar contrato Padrão para o novo paciente
       setContracts([...contracts, {
         id: contracts.length + 1,
         patientId: id,
@@ -680,7 +683,7 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
         value: newPatient.sessionValue,
         paymentDay: newPatient.billingMode === 'Mensal' ? newPatient.paymentDay : null,
         billingMode: newPatient.billingMode,
-        dueDaysAfterSession: newPatient.billingMode === 'Por sessÉo' ? newPatient.dueDaysAfterSession : null,
+        dueDaysAfterSession: newPatient.billingMode === 'Por sessão' ? newPatient.dueDaysAfterSession : null,
         status: 'Ativo',
         requiresNF: newPatient.requiresNF
       }]);
@@ -739,7 +742,7 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
         value: newPatient.sessionValue,
         billingMode: newPatient.billingMode,
         paymentDay: newPatient.billingMode === 'Mensal' ? newPatient.paymentDay : null,
-        dueDaysAfterSession: newPatient.billingMode === 'Por sessÉo' ? newPatient.dueDaysAfterSession : null,
+        dueDaysAfterSession: newPatient.billingMode === 'Por sessão' ? newPatient.dueDaysAfterSession : null,
         requiresNF: newPatient.requiresNF
       } : c));
 
@@ -793,7 +796,7 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
   const handleReschedule = (event) => {
     // Marcar atual como reagendado
     updateEventStatus(event.id, 'rescheduled');
-    // Preparar nova sessÉo com mesmos dados
+    // Preparar nova sessão com mesmos dados
     setNewSession({
       patient: event.patient,
       date: '', // Limpa para obrigar a escolher nova data
@@ -805,11 +808,11 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
   };
 
   const handleDeleteEvent = (id) => {
-    if (window.confirm("Deseja realmente excluir esta sessÉo permanentemente?")) {
+    if (window.confirm("Deseja realmente excluir esta sessão permanentemente?")) {
       const event = events.find(e => e.id === id);
       // Se era confirmada e tinha crédito abatido, ele NÉƒO volta automaticamente?
       // O usuário pediu "excluir" e falou de "estornar" no romaneio.
-      // Vou apenas excluir a sessÉo da lista.
+      // Vou apenas excluir a sessão da lista.
       setEvents(events.filter(e => e.id !== id));
     }
   };
@@ -840,7 +843,7 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
       {/* Sidebar */}
       <aside className="sidebar glass-effect">
         <div className="sidebar-logo">
-          <div className="logo-icon">’</div>
+          <div className="logo-icon">💜</div>
           <h2>Plataforma de<br />Psicologia</h2>
         </div>
 
@@ -883,7 +886,7 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
           />
           <SidebarItem
             icon={Database}
-            label="GestÉo de Dados"
+            label="Gestão de Dados"
             active={activeTab === 'data_management'}
             onClick={() => setActiveTab('data_management')}
           />
@@ -988,7 +991,7 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
 
                   const activePatients = new Set(periodEvents.map(e => e.patient)).size;
 
-                  // Faturamento estimado (considerando valor da sessÉo do contrato)
+                  // Faturamento estimado (considerando valor da sessão do contrato)
                   const estimatedValue = periodEvents.reduce((acc, e) => {
                     const contract = contracts.find(c => c.patientName === e.patient);
                     if (e.status !== 'cancelled' && e.status !== 'excused_absence') {
@@ -1068,7 +1071,7 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
                                   <button title="Cancelar" className="action-dot-btn" onClick={(e) => { e.stopPropagation(); updateEventStatus(app.id, 'pending'); }}><X size={12} /></button>
                                   <div className="falta-group" style={{ display: 'flex', gap: '2px' }}>
                                     <button title="Falta Justificada" className="action-dot-btn excused" style={{ fontSize: '9px', width: '24px', background: '#f59e0b20', color: '#f59e0b' }} onClick={(e) => { e.stopPropagation(); updateEventStatus(app.id, 'excused_absence'); }}>FJ</button>
-                                    <button title="Falta NÉo Justificada" className="action-dot-btn unexcused" style={{ fontSize: '9px', width: '24px' }} onClick={(e) => { e.stopPropagation(); updateEventStatus(app.id, 'unexcused_absence'); }}>FN</button>
+                                    <button title="Falta Não Justificada" className="action-dot-btn unexcused" style={{ fontSize: '9px', width: '24px' }} onClick={(e) => { e.stopPropagation(); updateEventStatus(app.id, 'unexcused_absence'); }}>FN</button>
                                   </div>
                                   <button title="Excluir" className="action-dot-btn" style={{ color: '#f43f5e' }} onClick={(e) => { e.stopPropagation(); handleDeleteEvent(app.id); }}><Trash2 size={12} /></button>
                                 </div>
@@ -1107,8 +1110,8 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
                               }
                               if (!contract) return;
 
-                              // Verificar os últimos 6 meses em busca de atrasos
-                              for (let i = 5; i >= 0; i--) {
+                              // Verificar os últimos 24 meses em busca de atrasos (todos os meses/anos)
+                              for (let i = 23; i >= 0; i--) {
                                 const checkDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
                                 const checkMonth = checkDate.getMonth();
                                 const checkYear = checkDate.getFullYear();
@@ -1117,7 +1120,7 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
 
                                 if (statusData.status === 'atrasado') {
                                   let label = '';
-                                  if (contract.billingMode === 'Por SessÉo') {
+                                  if (contract.billingMode === 'Por sessão') {
                                     const monthEvents = events.filter(e => {
                                       const ed = parseLocalDate(e.date);
                                       return ed && ed.getMonth() === checkMonth && ed.getFullYear() === checkYear &&
@@ -1136,7 +1139,7 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
                                       sd.setDate(sd.getDate() + (contract.dueDaysAfterSession || 2));
                                       label = `Atrasado: ${sd.toLocaleDateString('pt-BR')}`;
                                     } else {
-                                      label = 'Prazos de sessÉo vencidos';
+                                      label = 'Prazos de sessão vencidos';
                                     }
                                   } else {
                                     const day = contract.paymentDay || 5;
@@ -1158,7 +1161,7 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
                                   if (contract.billingMode === 'Mensal' || !contract.billingMode) {
                                     diff = (contract.paymentDay || 5) - now.getDate();
                                   } else {
-                                    // Para por sessÉo, ver a sessÉo mais próxima de vencer
+                                    // Para por sessão, ver a sessão mais próxima de vencer
                                     const monthEvents = events.filter(e => {
                                       const ed = parseLocalDate(e.date);
                                       return ed && ed.getMonth() === m && ed.getFullYear() === y &&
@@ -1269,7 +1272,7 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
                 <>
                   <div className="view-header">
                     <div>
-                      <h1>GestÉo de Pacientes</h1>
+                      <h1>Gestão de Pacientes</h1>
                       <p>Centralize todas as informações dos seus pacientes.</p>
                     </div>
                     <button className="btn-primary" onClick={() => { setShowAddPatientModal(true); setEditingPatient(null); }}>
@@ -1284,7 +1287,7 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
                         <tr>
                           <th>Paciente</th>
                           <th>Contato</th>
-                          <th>Última sessÉo</th>
+                          <th>Última sessão</th>
                           <th>Status</th>
                           <th>Ações</th>
                         </tr>
@@ -1390,7 +1393,7 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
                           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
                         }}
                       >
-                        <User size={18} /> VisÉo Geral
+                        <User size={18} /> Visão Geral
                       </button>
                       <button
                         className={`tab-pill`}
@@ -1458,13 +1461,13 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
                             <div className="info-row">
                               <span className="label">Faturamento:</span>
                               <span className="value">
-                                {selectedPatientForDetail.billingMode === 'Por sessÉo'
-                                  ? `${selectedPatientForDetail.dueDaysAfterSession} dias após sessÉo`
+                                {selectedPatientForDetail.billingMode === 'Por sessão'
+                                  ? `${selectedPatientForDetail.dueDaysAfterSession} dias após sessão`
                                   : `Mensal (Dia ${selectedPatientForDetail.paymentDay || 5})`}
                               </span>
                             </div>
                             <div className="info-row">
-                              <span className="label">Valor sessÉo:</span>
+                              <span className="label">Valor sessão:</span>
                               <span className="value">{formatBRL(selectedPatientForDetail.sessionValue)}</span>
                             </div>
                           </div>
@@ -1494,7 +1497,7 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
                               </div>
                             ))}
                           {events.filter(e => e.patient === selectedPatientForDetail.name).length === 0 && (
-                            <p style={{ color: 'var(--text-muted)', textAlign: 'center', marginTop: '20px' }}>Nenhuma sessÉo registrada.</p>
+                            <p style={{ color: 'var(--text-muted)', textAlign: 'center', marginTop: '20px' }}>Nenhuma sessão registrada.</p>
                           )}
                         </div>
                       )}
@@ -1514,7 +1517,7 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
                 </div>
                 <button className="btn-primary" onClick={() => setShowNewSessionModal(true)}>
                   <Plus size={20} />
-                  Nova sessÉo
+                  Nova sessão
                 </button>
               </div>
 
@@ -1583,13 +1586,13 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
                                       <button
                                         title="Falta"
                                         className={`action-dot-btn ${(event.status === 'excused_absence' || event.status === 'unexcused_absence') ? 'excused' : ''}`}
-                                        style={{ fontSize: '8px', width: '32px', background: (event.status === 'excused_absence' || event.status === 'unexcused_absence') ? '#f59e0b20' : 'var(--bg-secondary)', color: '#f59e0b', padding: '0' }}
+                                        style={{ fontSize: '8px', width: '20px', background: (event.status === 'excused_absence' || event.status === 'unexcused_absence') ? '#f59e0b20' : 'var(--bg-secondary)', color: '#f59e0b', padding: '0' }}
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           setShowFaltaMenuId(showFaltaMenuId === event.id ? null : event.id);
                                         }}
                                       >
-                                        FALTA
+                                        F
                                       </button>
                                       {showFaltaMenuId === event.id && (
                                         <div
@@ -1619,7 +1622,7 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
                                             style={{ width: '100%', padding: '8px 12px', fontSize: '0.7rem', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', borderTop: '1px solid var(--border-light)' }}
                                             onClick={(e) => { e.stopPropagation(); updateEventStatus(event.id, 'unexcused_absence'); setShowFaltaMenuId(null); }}
                                           >
-                                            NÉo Justificada
+                                            Não Justificada
                                           </button>
                                         </div>
                                       )}
@@ -1698,15 +1701,15 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
             <div className="records-view animate-fade-in">
               <div className="view-header">
                 <h1>Prontuários & Smart Notes</h1>
-                <p>Selecione uma sessÉo, transcreva o áudio e use sua IA preferida para analisar.</p>
+                <p>Selecione uma sessão, transcreva o áudio e use sua IA preferida para analisar.</p>
               </div>
 
               <div className="records-grid">
 
-                {/* Coluna da Esquerda: SeleçÉo e TranscriçÉo */}
+                {/* Coluna da Esquerda: Seleção e Transcrição */}
                 <div className="card-premium session-input" style={{ display: 'flex', flexDirection: 'column', height: 'fit-content' }}>
                   <div className="card-header">
-                    <h3>1. Selecione a sessÉo</h3>
+                    <h3>1. Selecione a sessão</h3>
                   </div>
 
                   <div className="filters-container" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '15px' }}>
@@ -1763,7 +1766,7 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
                   {selectedRecordEventId && (
                     <div className="transcription-area animate-fade-in" style={{ marginTop: '20px' }}>
                       <div className="card-header">
-                        <h3>2. TranscriçÉo de Voz</h3>
+                        <h3>2. Transcrição de Voz</h3>
                         {isRecordingReal && <span className="recording-badge pulse">Gravando...</span>}
                       </div>
 
@@ -1774,7 +1777,7 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
                           style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', padding: '15px' }}
                         >
                           {isRecordingReal ? <MicOff size={20} /> : <Mic size={20} />}
-                          {isRecordingReal ? 'Parar GravaçÉo' : 'Começar GravaçÉo'}
+                          {isRecordingReal ? 'Parar Gravação' : 'Começar Gravação'}
                         </button>
                       </div>
 
@@ -1785,7 +1788,7 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
                         value={recordData.transcription}
                         onChange={(e) => setRecordData({ ...recordData, transcription: e.target.value })}
                       ></textarea>
-                      <p className="hint" style={{ marginTop: '5px' }}>O áudio é transformado em texto em tempo real e nÉo é salvo, economizando espaço.</p>
+                      <p className="hint" style={{ marginTop: '5px' }}>O áudio é transformado em texto em tempo real e Não é salvo, economizando espaço.</p>
                     </div>
                   )}
                 </div>
@@ -1806,7 +1809,7 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
                       <div className="step-box" style={{ marginBottom: '25px' }}>
                         <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                           <strong>Instruções para a IA (Prompt)</strong>
-                          <button className="btn-link" style={{ fontSize: '0.8rem' }} onClick={() => setRecordData(prev => ({ ...prev, aiPrompt: 'Sou psicóloga analista do comportamento...' }))}>Restaurar PadrÉo</button>
+                          <button className="btn-link" style={{ fontSize: '0.8rem' }} onClick={() => setRecordData(prev => ({ ...prev, aiPrompt: 'Sou psicóloga analista do comportamento...' }))}>Restaurar Padrão</button>
                         </label>
                         <textarea
                           className="form-input"
@@ -1852,7 +1855,7 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
                 ) : (
                   <div className="card-premium empty-state-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
                     <FileText size={48} style={{ marginBottom: '15px', opacity: 0.3 }} />
-                    <h3>Selecione uma sessÉo ao lado</h3>
+                    <h3>Selecione uma sessão ao lado</h3>
                     <p>Para começar a transcrever e analisar.</p>
                   </div>
                 )}
@@ -1985,7 +1988,7 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
                             <div className="patient-avatar-finance">{patient.name[0]}</div>
                             <div className="patient-info-finance">
                               <h4>{patient.name}</h4>
-                              <span>{formatBRL(patient.sessionValue)} / sessÉo</span>
+                              <span>{formatBRL(patient.sessionValue)} / sessão</span>
                             </div>
                           </div>
                           <div className="card-finance-body">
@@ -2047,7 +2050,7 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
           {activeTab === 'data_management' && (
             <div className="data-management-view animate-fade-in">
               <div className="view-header">
-                <h1>GestÉo de Dados</h1>
+                <h1>Gestão de Dados</h1>
                 <p>Exporte e importe seus dados para manter sua clínica segura.</p>
               </div>
 
@@ -2186,12 +2189,12 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
         </div>
       )}
 
-      {/* Modal de Nova sessÉo */}
+      {/* Modal de Nova sessão */}
       {showNewSessionModal && (
         <div className="modal-overlay" onClick={() => setShowNewSessionModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>Nova sessÉo</h2>
+              <h2>Nova sessão</h2>
               <button className="btn-close" onClick={() => setShowNewSessionModal(false)}>
                 <X size={20} />
               </button>
@@ -2240,7 +2243,7 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
                   className="form-input"
                 >
                   <option value="Psicoterapia">Psicoterapia</option>
-                  <option value="AvaliaçÉo">AvaliaçÉo</option>
+                  <option value="Avaliação">Avaliação</option>
                   <option value="Retorno">Retorno</option>
                   <option value="Primeira Consulta">Primeira Consulta</option>
                 </select>
@@ -2259,7 +2262,7 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
               </div>
 
               <button className="btn-primary btn-save" onClick={handleAddSession}>
-                Agendar sessÉo
+                Agendar sessão
               </button>
             </div>
           </div>
@@ -2279,7 +2282,7 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
 
             <div className="settings-body">
               <div className="form-group">
-                <label>Valor por sessÉo (R$)</label>
+                <label>Valor por sessão (R$)</label>
                 <input
                   type="number"
                   value={editingContract.value}
@@ -2354,7 +2357,7 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
                 <h2>{selectedFinancePatient.name}</h2>
                 <span className="patient-meta" style={{ display: 'flex', gap: '15px', color: 'var(--text-muted)', marginTop: '5px' }}>
                   <span><Calendar size={14} style={{ marginRight: '4px', verticalAlign: 'text-bottom' }} /> {contracts.find(c => c.patientId === selectedFinancePatient.id)?.billingMode || 'Mensal'}</span>
-                  <span><DollarSign size={14} style={{ marginRight: '4px', verticalAlign: 'text-bottom' }} /> {formatBRL(selectedFinancePatient.sessionValue)} / sessÉo</span>
+                  <span><DollarSign size={14} style={{ marginRight: '4px', verticalAlign: 'text-bottom' }} /> {formatBRL(selectedFinancePatient.sessionValue)} / sessão</span>
                 </span>
               </div>
               <button className="btn-close" onClick={() => setShowFinanceDetail(false)}>
@@ -2366,11 +2369,38 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
 
               <div className="finance-summary-cards" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '30px' }}>
                 {contracts.find(c => c.patientId === selectedFinancePatient.id)?.billingMode === 'Mensal Antecipado' ? (
-                  <div className="card-premium" style={{ background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', color: 'white' }}>
+                  <div className="card-premium" style={{ background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', color: 'white', position: 'relative' }}>
                     <span style={{ fontSize: '0.85rem', opacity: 0.9, display: 'block', marginBottom: '5px' }}>Saldo de Créditos</span>
                     <div style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>
                       {selectedFinancePatient.credits || 0} sessões
                     </div>
+                    <button
+                      className="btn-primary"
+                      style={{
+                        position: 'absolute',
+                        top: '10px',
+                        right: '10px',
+                        padding: '4px 8px',
+                        fontSize: '0.7rem',
+                        background: 'rgba(255,255,255,0.2)',
+                        border: '1px solid rgba(255,255,255,0.4)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                      onClick={() => {
+                        const sessionVal = selectedFinancePatient.sessionValue || 200;
+                        setCreditForm({
+                          amount: sessionVal * 4,
+                          credits: 4,
+                          date: new Date().toISOString().split('T')[0]
+                        });
+                        setCreditTarget({ patient: selectedFinancePatient, month: now.getMonth(), year: now.getFullYear() });
+                        setShowCreditModal(true);
+                      }}
+                    >
+                      <Plus size={12} /> Add Créditos
+                    </button>
                   </div>
                 ) : (
                   <div className="card-premium" style={{ background: 'linear-gradient(135deg, rgba(var(--primary-rgb), 0.1) 0%, rgba(var(--primary-rgb), 0.05) 100%)', border: '1px solid rgba(var(--primary-rgb), 0.2)' }}>
@@ -2389,7 +2419,9 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
               </div>
 
               <div className="finance-tabs" style={{ marginBottom: '20px' }}>
-                <div className="finance-tab active" style={{ borderBottom: '2px solid var(--primary)', paddingBottom: '10px', fontWeight: '600' }}>Histórico de Pagamentos</div>
+                <div className="finance-tab active" style={{ borderBottom: '2px solid var(--primary)', paddingBottom: '10px', fontWeight: '600' }}>
+                  {contracts.find(c => c.patientId === selectedFinancePatient.id)?.billingMode === 'Mensal Antecipado' ? 'Histórico de Créditos' : 'Histórico de Pagamentos'}
+                </div>
               </div>
 
               <div className="session-history-list" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -2410,7 +2442,7 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
                         (e.status === 'confirmed' || e.status === 'unexcused_absence');
                     });
 
-                    if (monthEvents.length > 0) {
+                    if (monthEvents.length > 0 && contract?.billingMode !== 'Mensal Antecipado') {
                       const pData = getPaymentData(selectedFinancePatient.id, d.getMonth(), d.getFullYear(), contract, paymentStatuses, events);
                       const status = pData.status;
                       const displayValue = calculateMonthlyValue(contract, d.getMonth(), d.getFullYear());
@@ -2463,18 +2495,9 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
                           <div style={{ display: 'flex', gap: '8px', borderTop: '1px solid var(--border-light)', paddingTop: '10px', marginTop: '5px' }}>
                             {contract?.billingMode === 'Mensal Antecipado' ? (
                               <div style={{ width: '100%' }}>
-                                <button className="btn-outline-small" style={{ width: '100%', fontSize: '0.75rem', padding: '8px', background: 'rgba(var(--primary-rgb), 0.1)', borderColor: 'var(--primary)', color: 'var(--primary)', marginBottom: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }} onClick={() => {
-                                  const sessionVal = selectedFinancePatient.sessionValue || 200;
-                                  setCreditForm({
-                                    amount: sessionVal * 4,
-                                    credits: 4,
-                                    date: new Date().toISOString().split('T')[0]
-                                  });
-                                  setCreditTarget({ patient: selectedFinancePatient, month: d.getMonth(), year: d.getFullYear() });
-                                  setShowCreditModal(true);
-                                }}>
-                                  <Plus size={14} /> Nova Entrada (Créditos)
-                                </button>
+                                <div style={{ textAlign: 'center', padding: '10px', background: 'rgba(var(--primary-rgb), 0.05)', borderRadius: '8px', color: 'var(--primary)', fontSize: '0.8rem', fontWeight: '500', marginBottom: '10px' }}>
+                                  Modo de Créditos Ativo
+                                </div>
 
                                 {paymentStatuses[`${selectedFinancePatient.id}-${d.getMonth()}-${d.getFullYear()}`]?.transactions?.length > 0 && (
                                   <div className="romaneios-list" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -2585,7 +2608,7 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
                     />
                   </div>
                   <div className="form-group">
-                    <label>Valor por sessÉo (R$)</label>
+                    <label>Valor por sessão (R$)</label>
                     <input
                       type="number"
                       value={newPatient.sessionValue}
@@ -2605,7 +2628,7 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
                     >
                       <option value="Mensal">Mensal (Pós-pago)</option>
                       <option value="Mensal Antecipado">Mensal Antecipado (Créditos)</option>
-                      <option value="Por sessÉo">Por sessÉo</option>
+                      <option value="Por sessão">Por sessão</option>
                     </select>
                   </div>
                   <div className="form-group">
@@ -2622,9 +2645,9 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
                           max="31"
                         />
                       </>
-                    ) : newPatient.billingMode === 'Por sessÉo' ? (
+                    ) : newPatient.billingMode === 'Por sessão' ? (
                       <>
-                        <label>Dias p/ Vencer (após sessÉo)</label>
+                        <label>Dias p/ Vencer (após sessão)</label>
                         <input
                           type="number"
                           placeholder="Qtd de dias (ex: 2)"
@@ -2655,7 +2678,7 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
           </div>
         )
       }
-      {/* Modal de ConfirmaçÉo de ExclusÉo de Paciente */}
+      {/* Modal de Confirmação de ExclusÉo de Paciente */}
       {showDeletePatientModal && patientToDelete && (
         <div className="modal-overlay" onClick={() => setShowDeletePatientModal(false)}>
           <div className="modal-content animate-pop-in" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '450px', textAlign: 'center', padding: '30px' }}>
@@ -2665,7 +2688,7 @@ ConclusÉo: implicações práticas bem delimitadas e sugestões objetivas para 
             <h2 style={{ marginBottom: '15px' }}>Excluir Paciente?</h2>
             <p style={{ color: 'var(--text-muted)', marginBottom: '25px', lineHeight: '1.6' }}>
               Tem certeza que deseja excluir <strong>{patientToDelete.name}</strong>?<br />
-              Esta açÉo é <strong>irreversível</strong> e apagará permanentemente todos os contratos, sessões e históricos financeiros vinculados.
+              Esta ação é <strong>irreversível</strong> e apagará permanentemente todos os contratos, sessões e históricos financeiros vinculados.
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
               <button className="btn-secondary" onClick={() => setShowDeletePatientModal(false)}>
